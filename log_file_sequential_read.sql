@@ -1,0 +1,1 @@
+--https://iusoltsev.wordpress.com/2018/03/09/log-file-sequential-read/
