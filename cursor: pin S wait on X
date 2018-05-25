@@ -1,0 +1,88 @@
+--https://svenweller.wordpress.com/2018/05/23/tackling-cursor-pin-s-wait-on-x-wait-event-issue/
+
+select * from v$session;
+ 
+select * from v$session_wait 
+order by wait_time+seconds_in_wait desc;
+
+- ash info
+select ash.sample_time, ash.session_id, ash.session_serial#, ash.sql_id,  
+       ash.event, -- ash.p1, ash.p1text, ash.p2, ash.p2text, ash.p3, ash.p3text,
+       ash.wait_time, ash.time_waited, 
+       ash.blocking_session, ash.blocking_session_serial#,
+       ash.in_parse --, ash.in_hard_parse, ash.in_sql_execution
+from v$active_session_history ash
+where ash.event = 'cursor: pin S wait on X'
+order by ash.sql_id, ash.sample_time;
+
+-- ash summary
+with sum_by_session as (
+        select ash.sql_id, ash.session_id, 
+               trunc(ash.sample_time,'HH') timeframe, min(ash.sample_time) min_time, max(ash.sample_time) max_time,
+               sum(ash.wait_time) + sum(ash.time_waited)  total_wait,
+               ash.event, ash.p1, ash.p1text, ash.p2, ash.p2text, ash.p3, ash.p3text, ash.in_hard_parse
+        from v$active_session_history ash
+        join v$active_session_history sqlids on sqlids.sql_id = ash.sql_id
+        where (ash.event like 'cursor: pin S%' or ash.in_hard_parse = 'Y' )
+        and sqlids.event = 'cursor: pin S wait on X'
+        group by  ash.sql_id,  ash.session_id, ash.event, ash.p1, ash.p1text, ash.p2, ash.p2text, ash.p3, ash.p3text, ash.in_hard_parse
+                 ,trunc(ash.sample_time,'HH')
+         )        
+select s.sql_id, to_char(s.timeframe,'dd-Mon-RR HH24') timeframe,
+       to_char(min(s.min_time),'HH24:MI:SS')||'-'||to_char(max(s.max_time),'HH24:MI:SS') timeperiod, 
+       round(sum(total_wait)/1000000,2)  total_wait_in_s,
+       s.event, s.p1, s.p1text, s.p2, s.p2text, s.p3, s.p3text, s.in_hard_parse, 
+       listagg(s.session_id,',') within group (order by s.session_id) as sids
+from sum_by_session s              
+group by s.sql_id,  s.event, s.p1, s.p1text, s.p2, s.p2text, s.p3, s.p3text, s.in_hard_parse, s.timeframe
+order by s.sql_id, s.in_hard_parse desc, s.timeframe;
+
+TIMEFRAME	    TIMEPERIOD	   TOTAL_WAIT_IN_S 	EVENT			P1		P1TEXT	P2		P2TEXT	P3		P3TEXT	IN_HARD_PARSE	SIDS
+a7s0bjm8467xg	22-mai-18 04	04:21:10-04:21:10	0,46	cursor: pin S wait on X	3494059951	idn	674309865472	value	21474836480	where	N	20,255,301
+cq42gcnqfs5vd	22-mai-18 04	04:21:09-04:21:09	0,04				1		file#	31620		block#	1		blocks	Y	247
+cq42gcnqfs5vd	22-mai-18 04	04:21:10-04:21:10	0,03				1		file#	31323		block#	1		blocks	Y	247
+>>>>>>>cq42gcnqfs5vd	22-mai-18 04	04:21:09-04:21:10	610,9	cursor: pin S wait on X	753669997	idn	1060856922112	value	21474836480	where	N	18,51,70,73,127,169,191,229,326,379,390,426,436,456
+3320xrzqy5t5c	22-mai-18 12	12:21:13-12:21:13	0				1		file#	22750		block#	1		blocks	Y	269
+3320xrzqy5t5c	22-mai-18 12	12:21:13-12:21:13	0,11	cursor: pin S wait on X	3991069868	idn	1155346202624	value	21474836480	where	N	314
+76fxznczqskp8	22-mai-18 00	00:21:07-00:21:07	0				1		file#	589		block#	1		blocks	Y	15
+76fxznczqskp8	22-mai-18 00	00:21:08-00:21:08	0,05				1		file#	31323		block#	1		blocks	Y	15
+76fxznczqskp8	22-mai-18 04	04:21:08-04:21:08	0,04				1		file#	507		block#	1		blocks	Y	73
+76fxznczqskp8	22-mai-18 00	00:21:07-00:21:08	404,66	cursor: pin S wait on X	1064061608	idn	64424509440	value	21474836480	where	N	8,67,90,151,167,193,221,253,314,351,364,367,419,456
+76fxznczqskp8	22-mai-18 04	04:21:08-04:21:08	419,54	cursor: pin S wait on X	1064061608	idn	313532612608	value	21474836480	where	N	18,51,70,127,169,191,247,326,379,390,426,436,456
+
+--Finding the problem statement
+select * --sql_id, sql_text, sql_fulltext 
+from v$sql 
+where sql_id = 'cq42gcnqfs5vd';
+
+select sql_id, module,
+       sql_fulltext,
+       cpu_time, elapsed_time, concurrency_wait_time, 
+       version_count, parse_calls, invalidations
+from v$sqlarea
+where sql_id = 'cq42gcnqfs5vd';
+
+--historical comparison
+
+select * from v$event_histogram 
+where event = 'cursor: pin S wait on X';
+
+--Event detail and mutex analysis
+select * 
+from GV$MUTEX_SLEEP_HISTORY
+where blocking_session = 247;
+
+-->>>>>  kkslce [KKSCHLPIN2]
+
+select MUTEX_TYPE,LOCATION,REQUESTING_SESSION,BLOCKING_SESSION,SLEEP_TIMESTAMP
+from GV$MUTEX_SLEEP_HISTORY
+where location='kkslce [KKSCHLPIN2]'
+
+select * from v$mutex_sleep
+--where location='kkslce [KKSCHLPIN2]'
+order by sleep time desc;
+
+
+
+
+
