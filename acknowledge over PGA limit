@@ -1,0 +1,16 @@
+--Doc ID 2138882.1
+
+1. Set PGA_AGGREGATE_LIMIT=0 (as SYS user) to revert to 11g behavior of PGA memory management using PGA_AGGREGATE_TARGET parameter and the wait event will be alleviated.
+
+           ALTER SYSTEM SET PGA_AGGREGATE_LIMIT=0 SID='*' SCOPE=BOTH;
+
+OR
+
+2. Set PGA_AGGREGATE_LIMIT to higher than the default value (as SYS user), which was calculated based on the PGA_AGGREGATE_TARGET, PROCESSES or "_pga_limit_target_perc" setting and that will also help to reduce this wait event.
+
+          ALTER SYSTEM SET PGA_AGGREGATE_LIMIT= &new_value  SID='*' SCOPE=BOTH;
+
+One can override the default calculations to increase the value of PGA_AGGREGATE_LIMIT. For example:
+(1) Increasing PGA_AGGREGATE_TARGET from 2G to 4G will give a default PGA_AGGREGATE_LIMIT of 8G.
+(2) Increasing processes parameter to 3000 will give a default PGA_AGGREGATE_LIMIT of 9000M.
+(3) Setting underscore parameter "_pga_limit_target_perc"=400 (default 200) will give a default limit of 8G.
