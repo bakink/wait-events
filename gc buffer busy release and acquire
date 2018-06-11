@@ -1,0 +1,25 @@
+--http://www.artoftuning.net/gc-buffer-busy-acquire-and-release/
+--https://www.hhutzler.de/blog/debugging-and-fixing-rac-wait-events-for-right-hand-side-index-growth-gc-buffer-busy-release-gc-buffer-busy-acquire/
+--https://orainternals.wordpress.com/2012/04/19/gc-buffer-busy-acquire-vs-release/
+--https://martincarstenbach.wordpress.com/2014/12/16/adventures-in-rac-gc-buffer-busy-acquire-and-release/
+
+SQL> select name, parameter1, parameter2, parameter3, wait_class
+  2  from v$event_name where name = 'gc buffer busy acquire';
+ 
+NAME                           PARAMETER1 PARAMETER2 PARAMETER3 WAIT_CLASS
+------------------------------ ---------- ---------- ---------- -------------------
+gc buffer busy acquire         file#      block#     class#     Cluster
+
+SELECT inst_id, sql_opname,event, p1, p2, p3,  current_obj#,  COUNT (*) cnt
+FROM gv$active_session_history
+WHERE sample_time BETWEEN to_Date('11/06/2018 13:51:00','dd/mm/yyyy hh24:mi:ss') and to_Date('11/06/2018 13:52:00','dd/mm/yyyy hh24:mi:ss')
+  AND wait_class = 'Cluster'
+GROUP BY inst_id, event, sql_opname,p1, p2, p3, current_obj#
+ORDER BY cnt DESC
+
+SELECT sql_id, SQL_PLAN_HASH_VALUE, SQL_PLAN_LINE_ID, COUNT (*) cnt
+FROM  gv$active_session_history h
+WHERE  sample_time BETWEEN to_Date('11/06/2018 13:51:00','dd/mm/yyyy hh24:mi:ss') and to_Date('11/06/2018 13:52:00','dd/mm/yyyy hh24:mi:ss')
+  AND wait_class = 'Cluster' and event='gc buffer busy acquire'
+GROUP BY sql_id, SQL_PLAN_HASH_VALUE, SQL_PLAN_LINE_ID
+ORDER BY cnt DESC;
