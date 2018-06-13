@@ -2,6 +2,7 @@
 --https://www.hhutzler.de/blog/debugging-and-fixing-rac-wait-events-for-right-hand-side-index-growth-gc-buffer-busy-release-gc-buffer-busy-acquire/
 --https://orainternals.wordpress.com/2012/04/19/gc-buffer-busy-acquire-vs-release/
 --https://martincarstenbach.wordpress.com/2014/12/16/adventures-in-rac-gc-buffer-busy-acquire-and-release/
+--https://iusoltsev.wordpress.com/2016/05/06/cluster-interinstance-waits-lms-processes/
 
 SQL> select name, parameter1, parameter2, parameter3, wait_class
   2  from v$event_name where name = 'gc buffer busy acquire';
