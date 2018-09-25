@@ -503,3 +503,35 @@ upper(c.KGLNAOBJ) like upper('%&obj_name%') and
 a.KGLPNHDL = c.KGLHDADR
 /
 Exit
+
+---https://redikx.wordpress.com/2009/09/25/library-cache-lock-find-locking-session/
+
+Library cache lock – find locking session
+Posted on September 25, 2009 by redikx
+1.
+select saddr from v$session where sid in (select sid from v$session_wait where event like ‘library cache lock’);
+
+2. FIND BLOCKER:
+
+SELECT SID,USERNAME,TERMINAL,PROGRAM FROM V$SESSION
+WHERE SADDR in
+(SELECT KGLLKSES FROM X$KGLLK LOCK_A
+WHERE KGLLKREQ = 0
+AND EXISTS (SELECT LOCK_B.KGLLKHDL FROM X$KGLLK LOCK_B
+WHERE KGLLKSES = 'result_from_1' /* BLOCKED SESSION */
+AND LOCK_A.KGLLKHDL = LOCK_B.KGLLKHDL
+AND KGLLKREQ > 0)
+);
+
+3. FIND BLOCKED:
+
+SELECT SID,USERNAME,TERMINAL,PROGRAM FROM V$SESSION
+WHERE SADDR in
+(SELECT KGLLKSES FROM X$KGLLK LOCK_A
+WHERE KGLLKREQ > 0
+AND EXISTS (SELECT LOCK_B.KGLLKHDL FROM X$KGLLK LOCK_B
+WHERE KGLLKSES = 'saddr_from_v$session above' /* BLOCKING SESSION */
+AND LOCK_A.KGLLKHDL = LOCK_B.KGLLKHDL
+AND KGLLKREQ = 0)
+);
+
