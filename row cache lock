@@ -1,0 +1,19 @@
+--https://sites.google.com/site/embtdbo/wait-event-documentation/oracle-library-cache#TOC-latch:-row-cache-objects
+select
+       ash.session_id sid,
+       ash.blocking_session bsid,
+       nvl(o.object_name,to_char(CURRENT_OBJ#)) obj,
+       o.object_type otype,
+       CURRENT_FILE# filen,
+       CURRENT_BLOCK# blockn,
+       ash.SQL_ID,
+       nvl(rc.name,to_char(ash.p3)) row_cache
+from v$active_session_history ash,
+     ( select cache#, parameter name from v$rowcache ) rc,
+      all_objects o
+where event='row cache lock'
+   and rc.cache#(+)=ash.p1
+   and o.object_id (+)= ash.CURRENT_OBJ#
+   and ash.session_state='WAITING'
+   and ash.sample_time > sysdate - &minutes/(60*24)
+Order by sample_time
