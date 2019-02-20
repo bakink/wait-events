@@ -1,0 +1,1170 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="zh-CN">
+<head profile="http://gmpg.org/xfn/11">
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7" />
+	<meta name="Keywords" content="&#24352;&#32500;&#29031;,&#27827;&#21271;ORACLE, &#30707;&#23478;&#24196;ORACLE, &#24615;&#33021;&#35843;&#20248;,ORACLE&#25925;&#38556;&#35786;&#26029;,OGG,goldengate" /> 
+        <meta name="description" content="&#27827;&#21271;&#30707;&#23478;&#24196;ORACLE &#24615;&#33021;&#35843;&#20248; ORACLE&#25925;&#38556;&#35786;&#26029; MYSQL SQL SERVER  OGG goldengate" />
+	
+<title>Troubleshooting  high “gc current grant 2-way” and &#8220;gc cr grant 2-way&#8221; 案例(二) | ANBOB</title>
+	
+	<!-- descripton and keywords start -->
+		<meta name="description" content="如何分析RAC中的GC 问题，结合案例分析11.2.0.3 RAC中异常高的gc cr grant 2-way等待事件， bug 的解决方法"_max_cr_rollbacks" ..." />
+	<meta name="keywords" content="_max_cr_rollbacks, gc cr grant 2-way, gc current grant 2-way, " />
+	<!-- description and keywords end -->
+	
+	<link rel="stylesheet" type="text/css" media="screen" href="http://www.anbob.com/wp-content/themes/vanj2010v1/style.css" />
+	<link rel="shortcut icon" href="http://www.anbob.com/favicon.ico" />
+	<link rel="alternate" type="application/rss+xml" title="ANBOB RSS Feed" href="http://www.anbob.com/feed" />
+	<link rel="pingback" href="http://www.anbob.com/xmlrpc.php" />	
+	<!-- append 2011-6-18 -->
+<!--
+     <link type="text/css" rel="stylesheet" href="http://www.anbob.com/wp-content/themes/vanj2010v1/highcode/Styles/SyntaxHighlighter.css"></link> 
+     <script language="javascript" src="http://www.anbob.com/wp-content/themes/vanj2010v1/highcode/Scripts/shCore.js"></script> 
+     <script class="javascript" src="http://www.anbob.com/wp-content/themes/vanj2010v1/highcode/Scripts/shBrushSql.js"></script> 
+-->
+
+     <script language="javascript"> 
+      window.onload = function () { 
+      dp.SyntaxHighlighter.ClipboardSwf = 'http://www.anbob.com/wp-content/themes/vanj2010v1/highcode/Scripts/clipboard.swf'; 
+       dp.SyntaxHighlighter.HighlightAll('code'); 
+       } 
+      </script> 
+
+	  <!-- &#21435;&#24191;&#21578; -->
+<style type="text/css">
+#freewha   { display: none; }
+</style>
+
+<!--
+<script type="text/javascript">
+	$( function(){
+		$("div[id^='MAX_']").css("display","none");
+ 		$("script[src*='user99.freewebhostingarea.com']").attr("src","user99");
+ 		$("script[src*='user99.freewebhostingarea.com']").removeAttr("src") ;
+     		
+</script>
+-->
+
+<script type="text/javascript">
+var myWrite = document.write;
+document.write = function(){};
+window.onerror = function(){return true;};
+</script>
+	 
+ 
+<link rel='dns-prefetch' href='//s.w.org' />
+<link rel="alternate" type="application/rss+xml" title="ANBOB &raquo; Troubleshooting  high “gc current grant 2-way” and &#8220;gc cr grant 2-way&#8221; 案例(二)评论Feed" href="http://www.anbob.com/archives/3227.html/feed" />
+		<script type="text/javascript">
+			window._wpemojiSettings = {"baseUrl":"https:\/\/s.w.org\/images\/core\/emoji\/2.4\/72x72\/","ext":".png","svgUrl":"https:\/\/s.w.org\/images\/core\/emoji\/2.4\/svg\/","svgExt":".svg","source":{"concatemoji":"http:\/\/www.anbob.com\/wp-includes\/js\/wp-emoji-release.min.js?ver=4.9.5"}};
+			!function(a,b,c){function d(a,b){var c=String.fromCharCode;l.clearRect(0,0,k.width,k.height),l.fillText(c.apply(this,a),0,0);var d=k.toDataURL();l.clearRect(0,0,k.width,k.height),l.fillText(c.apply(this,b),0,0);var e=k.toDataURL();return d===e}function e(a){var b;if(!l||!l.fillText)return!1;switch(l.textBaseline="top",l.font="600 32px Arial",a){case"flag":return!(b=d([55356,56826,55356,56819],[55356,56826,8203,55356,56819]))&&(b=d([55356,57332,56128,56423,56128,56418,56128,56421,56128,56430,56128,56423,56128,56447],[55356,57332,8203,56128,56423,8203,56128,56418,8203,56128,56421,8203,56128,56430,8203,56128,56423,8203,56128,56447]),!b);case"emoji":return b=d([55357,56692,8205,9792,65039],[55357,56692,8203,9792,65039]),!b}return!1}function f(a){var c=b.createElement("script");c.src=a,c.defer=c.type="text/javascript",b.getElementsByTagName("head")[0].appendChild(c)}var g,h,i,j,k=b.createElement("canvas"),l=k.getContext&&k.getContext("2d");for(j=Array("flag","emoji"),c.supports={everything:!0,everythingExceptFlag:!0},i=0;i<j.length;i++)c.supports[j[i]]=e(j[i]),c.supports.everything=c.supports.everything&&c.supports[j[i]],"flag"!==j[i]&&(c.supports.everythingExceptFlag=c.supports.everythingExceptFlag&&c.supports[j[i]]);c.supports.everythingExceptFlag=c.supports.everythingExceptFlag&&!c.supports.flag,c.DOMReady=!1,c.readyCallback=function(){c.DOMReady=!0},c.supports.everything||(h=function(){c.readyCallback()},b.addEventListener?(b.addEventListener("DOMContentLoaded",h,!1),a.addEventListener("load",h,!1)):(a.attachEvent("onload",h),b.attachEvent("onreadystatechange",function(){"complete"===b.readyState&&c.readyCallback()})),g=c.source||{},g.concatemoji?f(g.concatemoji):g.wpemoji&&g.twemoji&&(f(g.twemoji),f(g.wpemoji)))}(window,document,window._wpemojiSettings);
+		</script>
+		<style type="text/css">
+img.wp-smiley,
+img.emoji {
+	display: inline !important;
+	border: none !important;
+	box-shadow: none !important;
+	height: 1em !important;
+	width: 1em !important;
+	margin: 0 .07em !important;
+	vertical-align: -0.1em !important;
+	background: none !important;
+	padding: 0 !important;
+}
+</style>
+<link rel='stylesheet' id='wp-recentcomments-css'  href='http://www.anbob.com/wp-content/plugins/wp-recentcomments/css/wp-recentcomments.css?ver=2.2.7' type='text/css' media='screen' />
+<link rel='stylesheet' id='wp-pagenavi-css'  href='http://www.anbob.com/wp-content/plugins/wp-pagenavi/pagenavi-css.css?ver=2.70' type='text/css' media='all' />
+<script type='text/javascript' src='http://www.anbob.com/wp-includes/js/jquery/jquery.js?ver=1.12.4'></script>
+<script type='text/javascript' src='http://www.anbob.com/wp-includes/js/jquery/jquery-migrate.min.js?ver=1.4.1'></script>
+<link rel='https://api.w.org/' href='http://www.anbob.com/wp-json/' />
+<link rel="EditURI" type="application/rsd+xml" title="RSD" href="http://www.anbob.com/xmlrpc.php?rsd" />
+<link rel="wlwmanifest" type="application/wlwmanifest+xml" href="http://www.anbob.com/wp-includes/wlwmanifest.xml" /> 
+<link rel='prev' title='Troubleshooting ORA-600 issue related to memory curruted when using DBLINK' href='http://www.anbob.com/archives/3213.html' />
+<link rel='next' title='Troubleshooting &#8220;latch: row cache objects&#8221; case and Event 10089 to do.' href='http://www.anbob.com/archives/3233.html' />
+<meta name="generator" content="WordPress 4.9.5" />
+<link rel="canonical" href="http://www.anbob.com/archives/3227.html" />
+<link rel='shortlink' href='http://www.anbob.com/?p=3227' />
+<link rel="alternate" type="application/json+oembed" href="http://www.anbob.com/wp-json/oembed/1.0/embed?url=http%3A%2F%2Fwww.anbob.com%2Farchives%2F3227.html" />
+<link rel="alternate" type="text/xml+oembed" href="http://www.anbob.com/wp-json/oembed/1.0/embed?url=http%3A%2F%2Fwww.anbob.com%2Farchives%2F3227.html&#038;format=xml" />
+
+
+
+</head> 
+<body class="post-template-default single single-post postid-3227 single-format-standard">
+<div id="wrapper">
+<div id="header">
+<div id="logo">
+<h1><a href="http://www.anbob.com"><b><font size="24px"  color="red">ANBOB&trade;</font></b></a></h1>
+</div>
+<div style="margin-top:30px; margin-left:2cm;font-size:13px;color:red;"><b>  &nbsp; &nbsp; &nbsp; &nbsp; &#25552;&#20379;&#19987;&#19994;&#30340;ORACLE [RAC]&#25968;&#25454;&#24211;&#21450;GoldenGate&#20135;&#21697;&#23433;&#35013;&#21319;&#32423;&#12289;&#24615;&#33021;&#35843;&#20248;&#12289;&#25925;&#38556;&#35786;&#26029;&#12289;&#36828;&#31243;&#25903;&#25345;&#31561;&#26381;&#21153;, &#32852;&#31995;QQ:dba@anbob.com WeiXin:zhang_weizhao</b> </div>
+<form action="http://www.google.com/cse?cx=009627415137024695630:wjrfnyitx2q" target="_blank">
+<input name="cx" value="009627415137024695630:wjrfnyitx2q" type="hidden">
+<input name="hl" value="zh-CN" type="hidden">
+<input name="ie" value="UTF8" type="hidden">
+<input name="q" size="25" type="text">
+<button type="submit">Submit</button>
+</form>
+
+
+
+		<ul class="pages box">
+		<li class="home "><a href="http://www.anbob.com">首页</a></li>
+		
+		<li class="page_item page-item-1848"><a href="http://www.anbob.com/aboutme-page">About Me(DBA张维照)</a></li>
+		<li><a href="http://www.anbob.com/sitemap.html">&#31449;&#20869;&#22320;&#22270;</a></li>
+		</ul>
+		
+		<ul class="navigation box">
+			<li class="cat-item cat-item-274"><a href="http://www.anbob.com/archives/category/exadata" >Exadata Machine</a>
+</li>
+	<li class="cat-item cat-item-104"><a href="http://www.anbob.com/archives/category/goldengate-sync-data-technology" >GoldenGate</a>
+</li>
+	<li class="cat-item cat-item-87"><a href="http://www.anbob.com/archives/category/java%e7%bc%96%e7%a8%8b" title="java开发">JAVA</a>
+</li>
+	<li class="cat-item cat-item-122"><a href="http://www.anbob.com/archives/category/nosql-document-type" >MongoDB</a>
+</li>
+	<li class="cat-item cat-item-79"><a href="http://www.anbob.com/archives/category/mysql" >MySQL</a>
+</li>
+	<li class="cat-item cat-item-6"><a href="http://www.anbob.com/archives/category/%e7%94%b2%e9%aa%a8%e6%96%87" title="数据库oracle">ORACLE</a>
+</li>
+	<li class="cat-item cat-item-113"><a href="http://www.anbob.com/archives/category/oracle-12c-18c-19c-20c" >ORACLE [C]系列</a>
+</li>
+	<li class="cat-item cat-item-63"><a href="http://www.anbob.com/archives/category/mssql" title="sql server">SQL Server</a>
+</li>
+	<li class="cat-item cat-item-4"><a href="http://www.anbob.com/archives/category/year" title="点滴岁月">点滴岁月</a>
+</li>
+	<li class="cat-item cat-item-7"><a href="http://www.anbob.com/archives/category/webapp" title="网上搜集应该最广的软件">精选软件</a>
+</li>
+	<li class="cat-item cat-item-18"><a href="http://www.anbob.com/archives/category/system" title="操作系统方面知识">系统相关</a>
+</li>
+	<li class="cat-item cat-item-8"><a href="http://www.anbob.com/archives/category/else" title="一些扯谈的内容">老哥杂谈</a>
+</li>
+		</ul>
+		
+		<div class="bottom">
+
+			<ul class="subscribe">
+			<li class="rssfeed"><a href="http://www.anbob.com/feed" target="_blank" title="RSS&#35746;&#38405;">Rss Feed</a></li>
+                        <li class="mail"><a href="mailto:weejar@gmail.com?subject=Hello%20again" target="_blank" title="&#37038;&#20214;&#32852;&#31995;&#25105;">Mail</a>
+			<li class="twitter"><a href="https://twitter.com/zhangweizhao">Twitter</a></li>
+                        <li class="weibo"><a href="https://weibo.com/zhangweizhao" style="">Weibo</a></li>
+                        <li class="paypal"><a href="https://www.paypal.me/weejar" style="padding-left: 18px;">资助站长</a></li>
+			</ul>
+		
+		</div>
+</div><!-- #header : end --> 
+ 
+
+<div id="middle" class="clearfix">
+<div id="content">
+<div class="postnav">
+	<a href="http://www.anbob.com/" title="返回首页">首页</a> &raquo; <a href="http://www.anbob.com/archives/category/%e7%94%b2%e9%aa%a8%e6%96%87" rel="category tag">ORACLE</a> &raquo; Troubleshooting  high “gc current grant 2-way” and &#8220;gc cr grant 2-way&#8221; 案例(二)</div>
+
+<div class="post clearfix" id="post-3227">
+<h2 class="title"><a href="http://www.anbob.com/archives/3227.html" title="Troubleshooting  high “gc current grant 2-way” and &#8220;gc cr grant 2-way&#8221; 案例(二)" rel="bookmark">Troubleshooting  high “gc current grant 2-way” and &#8220;gc cr grant 2-way&#8221; 案例(二)</a></h2>
+<div class="postmeta clearfix">
+	<ul>
+	<!--  <li class="meta-author"><a href="http://www.anbob.com/archives/author/admin" title="由admin发布" rel="author">admin</a></li> -->
+	<li class="meta-date">2019/01/31</li>	
+	<li class="meta-cat"><a href="http://www.anbob.com/archives/category/%e7%94%b2%e9%aa%a8%e6%96%87" rel="category tag">ORACLE</a></li>
+	<li class="meta-views">24 views</li>	<li class="meta-comments"><a href="http://www.anbob.com/archives/3227.html#respond">没有评论</a></li>
+	</ul>
+</div>
+<div class="content clearfix">
+	<p>很久以前遇到过一个案例，也是一套RAC环境出现了非常高的GC cr/current grant 2-way 等待事件， <a href="http://www.anbob.com/archives/2591.html">《Performance tuning ‘gc cr&amp;current grant 2-way’ event (当主机扩容cpu后)》</a> 当是这个案例是因为同一cluster的两个实例主机不同的CPU个数导致出现了不同的LMS进程数，负载能力不均衡导致， 这次要分享的案例是另个一种特殊情况。</p>
+<div id="attachment_3228" style="width: 633px" class="wp-caption aligncenter"><img class=" wp-image-3228" src="http://www.anbob.com/wp-content/uploads/2019/01/TIM图片20181026111203-1024x442.png" alt="SMARTDBOPS" width="623" height="269" srcset="http://www.anbob.com/wp-content/uploads/2019/01/TIM图片20181026111203-1024x442.png 1024w, http://www.anbob.com/wp-content/uploads/2019/01/TIM图片20181026111203-300x129.png 300w, http://www.anbob.com/wp-content/uploads/2019/01/TIM图片20181026111203-768x331.png 768w, http://www.anbob.com/wp-content/uploads/2019/01/TIM图片20181026111203.png 1192w" sizes="(max-width: 623px) 100vw, 623px" /><p class="wp-caption-text">来自SMARTDBOPS</p></div>
+<p>持续较高的GC类等待，</p>
+<p>NODE1</p>
+<table border="1" summary="Top 5 Timed Foreground Events">
+<tbody>
+<tr>
+<th class="awrbg" scope="col">Event</th>
+<th class="awrbg" scope="col">Waits</th>
+<th class="awrbg" scope="col">Time(s)</th>
+<th class="awrbg" scope="col">Avg wait (ms)</th>
+<th class="awrbg" scope="col">% DB time</th>
+<th class="awrbg" scope="col">Wait Class</th>
+</tr>
+<tr>
+<td class="awrc" scope="row">enq: TX &#8211; index contention</td>
+<td class="awrc" align="right">27,057</td>
+<td class="awrc" align="right">32,531</td>
+<td class="awrc" align="right">1202</td>
+<td class="awrc" align="right">25.09</td>
+<td class="awrc">Concurrency</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row">DB CPU</td>
+<td class="awrnc" align="right"></td>
+<td class="awrnc" align="right">26,320</td>
+<td class="awrnc" align="right"></td>
+<td class="awrnc" align="right">20.30</td>
+<td class="awrnc"></td>
+</tr>
+<tr>
+<td class="awrc" scope="row">enq: TX &#8211; row lock contention</td>
+<td class="awrc" align="right">165,277</td>
+<td class="awrc" align="right">9,237</td>
+<td class="awrc" align="right">56</td>
+<td class="awrc" align="right">7.12</td>
+<td class="awrc">Application</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row">gc current grant 2-way</td>
+<td class="awrnc" align="right">61,769</td>
+<td class="awrnc" align="right">9,208</td>
+<td class="awrnc" align="right">149</td>
+<td class="awrnc" align="right">7.10</td>
+<td class="awrnc">Cluster</td>
+</tr>
+<tr>
+<td class="awrc" scope="row">log file sync</td>
+<td class="awrc" align="right">1,937,689</td>
+<td class="awrc" align="right">6,747</td>
+<td class="awrc" align="right">3</td>
+<td class="awrc" align="right">5.20</td>
+<td class="awrc">Commit</td>
+</tr>
+</tbody>
+</table>
+<p>NODE2</p>
+<p>Top 5 Timed Foreground Events</p>
+<table border="1" summary="Top 5 Timed Foreground Events">
+<tbody>
+<tr>
+<th class="awrbg" scope="col">Event</th>
+<th class="awrbg" scope="col">Waits</th>
+<th class="awrbg" scope="col">Time(s)</th>
+<th class="awrbg" scope="col">Avg wait (ms)</th>
+<th class="awrbg" scope="col">% DB time</th>
+<th class="awrbg" scope="col">Wait Class</th>
+</tr>
+<tr>
+<td class="awrc" scope="row">gc buffer busy acquire</td>
+<td class="awrc" align="right">84,112</td>
+<td class="awrc" align="right">31,365</td>
+<td class="awrc" align="right">373</td>
+<td class="awrc" align="right">35.95</td>
+<td class="awrc">Cluster</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row">gc current grant 2-way</td>
+<td class="awrnc" align="right">24,906</td>
+<td class="awrnc" align="right">11,217</td>
+<td class="awrnc" align="right">450</td>
+<td class="awrnc" align="right">12.86</td>
+<td class="awrnc">Cluster</td>
+</tr>
+<tr>
+<td class="awrc" scope="row">gc current block 2-way</td>
+<td class="awrc" align="right">71,984</td>
+<td class="awrc" align="right">8,190</td>
+<td class="awrc" align="right">114</td>
+<td class="awrc" align="right">9.39</td>
+<td class="awrc">Cluster</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row">gc cr grant 2-way</td>
+<td class="awrnc" align="right">34,748</td>
+<td class="awrnc" align="right">6,061</td>
+<td class="awrnc" align="right">174</td>
+<td class="awrnc" align="right">6.95</td>
+<td class="awrnc">Cluster</td>
+</tr>
+<tr>
+<td class="awrc" scope="row">enq: TX &#8211; index contention</td>
+<td class="awrc" align="right">3,067</td>
+<td class="awrc" align="right">4,735</td>
+<td class="awrc" align="right">1544</td>
+<td class="awrc" align="right">5.43</td>
+<td class="awrc">Concurrency</td>
+</tr>
+</tbody>
+</table>
+<p>如果从节点1看会认为是并发争用enq index/row lock contention；还有gc cr/current grant 2-way, 该event表示Block is not in any cache，<br />
+ Permission granted to read from the disk.</p>
+<p>在诊断RAC问题时有几个黄金规则：<br />
+<strong>1. 谨防被TOP Event所欺骗</strong><br />
+在RAC环境中有可能根本问题在另一个节点中隐藏，基于不会显示在top 5 event中, 被影响的等待事件可能比根本原因等待事件本身还要高， 实例的性能错综复杂， 很可能一个节点的后台进程出现问题（如LMS），而影响了其它所有节点出现Application class等待事件。</p>
+<p><img class="wp-image-3229 aligncenter" src="http://www.anbob.com/wp-content/uploads/2019/01/gc-buffer-busy-1024x684.png" alt="" width="762" height="509" srcset="http://www.anbob.com/wp-content/uploads/2019/01/gc-buffer-busy-1024x684.png 1024w, http://www.anbob.com/wp-content/uploads/2019/01/gc-buffer-busy-300x200.png 300w, http://www.anbob.com/wp-content/uploads/2019/01/gc-buffer-busy-768x513.png 768w, http://www.anbob.com/wp-content/uploads/2019/01/gc-buffer-busy.png 1086w" sizes="(max-width: 762px) 100vw, 762px" /></p>
+<p>gc buffer busy xx 等待事件是RAC性能分析根本问题之前的主要证状， 简单认为在等待一个BLOCK的BL lock请求, 其它所有进程在等待这个BLOCK的BL lock可用其间的时间消耗都会记入gc buffer busy xx 等待事件中.</p>
+<p>&nbsp;</p>
+<p>ASH和dump block trace 文件可以定位GC BUFFER BUSY等待， 主要是识别对象，对象类型，块类型信息</p>
+<table border="1">
+<tbody>
+<tr>
+<th>Object type</th>
+<th>Block type</th>
+<th>Possible issue(s)</th>
+</tr>
+<tr>
+<td>Table</td>
+<td>Segment header</td>
+<td>Freelists, freelist groups, deletes from<br />
+one node,ASSM bugs etc</td>
+</tr>
+<tr>
+<td>Table</td>
+<td>Segment blocks</td>
+<td>Heavy insert workload, heavy update to<br />
+few blocks, SQL performance issues<br />
+scanning few objects aggressively.</td>
+</tr>
+<tr>
+<td>Index</td>
+<td>Leaf block</td>
+<td>Numerous inserts on indexed columns,<br />
+sequence or sysdate generated keys</td>
+</tr>
+<tr>
+<td>Index</td>
+<td>Root /<br />
+branch block</td>
+<td>Insert + numerous index scans,<br />
+concurrent inserts and deletes etc</td>
+</tr>
+<tr>
+<td>Undo</td>
+<td>Undo header block</td>
+<td>Numerous short transactions</td>
+</tr>
+<tr>
+<td>Undo</td>
+<td>Undo block</td>
+<td>Long pending transaction and CR block<br />
+generation</td>
+</tr>
+<tr>
+<td>Dictionary</td>
+<td> SEQ$ (object)</td>
+<td>Sequences with nocache or order set<br />
+and excessive access to sequence.</td>
+</tr>
+</tbody>
+</table>
+<p>&nbsp;</p>
+<p><strong>2. 消除基础架构环境问题</strong></p>
+<p>Gc cr grants 2-way  如果BLOCK没有在任何实例的Buffer cache中，时间会记入这个等待事件中，前台进程发送一个请求给远程LMS,   远程的LMS回复‘read from disk’. 出现gc 2-way 3-way这类意为着高并发出现的拥挤产生的等待，一个block和message传输的最小时间通常&lt;2ms, (Exadata&lt;0.5ms).  需要查看 AWR中的wait event histogram 查看2/3- way事件不同时间段的占比。排除网络问题</p>
+<p><strong>3. 识别问题实例</strong></p>
+<pre>SELECT INSTANCE ||'-&gt;’ || inst_id transfer,
+class, cr_block cr_blk,
+Trunc(cr_block_time / cr_block / 1000, 2) avg_Cr,
+current_block cur_blk,
+Trunc(current_block_time / current_block / 1000, 2) avg_cur
+FROM gv$instance_cache_transfer
+WHERE cr_block &gt; 0 AND current_block &gt; 0
+ORDER BY INSTANCE, inst_id, class
+/
+</pre>
+<p><strong>4. 检查发送端的性能指标，不只是接收端</strong><br />
+发送端<br />
+gc cr block receive time=<br />
+Time to send message to a remote LMS process by FG<br />
++ Time taken by LMS to build block (statistics: gc cr block build time)<br />
++ LMS wait for LGWR latency ( statistics: gc cr block flush time)<br />
++ LMS send time (Statistics: gc cr block send time)<br />
++ Wire latency.</p>
+<p><strong>5. 用柱状图去识别异常情况，而不只是平均值</strong></p>
+<p>AWR中的wait event histogram</p>
+<h3>案例分析</h3>
+<p>接着分析一开始AAS 上显示GC wait问题案例，这是一个11.2.0.3 2-NODES  RAC  ON HPUX 11.31的数据库，</p>
+<p># instance 1</p>
+<p>Global Cache Load Profile</p>
+<table border="1" summary="This table displays information about global cache load profile" width="500">
+<tbody>
+<tr>
+<th class="awrnobg" scope="col"></th>
+<th class="awrbg" scope="col">Per Second</th>
+<th class="awrbg" scope="col">Per Transaction</th>
+</tr>
+<tr>
+<td class="awrnc" scope="row">Global Cache blocks received:</td>
+<td class="awrnc" align="right">1,018.74</td>
+<td class="awrnc" align="right">1.08</td>
+</tr>
+<tr>
+<td class="awrc" scope="row">Global Cache blocks served:</td>
+<td class="awrc" align="right">78.53</td>
+<td class="awrc" align="right">0.08</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row">GCS/GES messages received:</td>
+<td class="awrnc" align="right">904.33</td>
+<td class="awrnc" align="right">0.96</td>
+</tr>
+<tr>
+<td class="awrc" scope="row">GCS/GES messages sent:</td>
+<td class="awrc" align="right">2,532.56</td>
+<td class="awrc" align="right">2.68</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row">DBWR Fusion writes:</td>
+<td class="awrnc" align="right">3.07</td>
+<td class="awrnc" align="right">0.00</td>
+</tr>
+<tr>
+<td class="awrc" scope="row">Estd Interconnect traffic (KB)</td>
+<td class="awrc" align="right">18,227.67</td>
+<td class="awrc" align="right"></td>
+</tr>
+</tbody>
+</table>
+<p>Global Cache Efficiency Percentages (Target local+remote 100%)</p>
+<table border="1" summary="This table displays global cache efficiency percentages" width="500">
+<tbody>
+<tr>
+<td class="awrnc" scope="row">Buffer access &#8211; local cache %:</td>
+<td class="awrnc" align="right">99.48</td>
+</tr>
+<tr>
+<td class="awrc" scope="row">Buffer access &#8211; remote cache %:</td>
+<td class="awrc" align="right">0.39</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row">Buffer access &#8211; disk %:</td>
+<td class="awrnc" align="right">0.14</td>
+</tr>
+</tbody>
+</table>
+<p>Global Cache and Enqueue Services &#8211; Workload Characteristics</p>
+<table border="1" summary="This table displays workload characteristics for global cache and enqueue services" width="500">
+<tbody>
+<tr>
+<td class="awrnc" scope="row">Avg global enqueue get time (ms):</td>
+<td class="awrnc" align="right">2.9</td>
+</tr>
+<tr>
+<td class="awrc" scope="row"><span style="color: #ff0000;">Avg global cache cr block receive time (ms):</span></td>
+<td class="awrc" align="right">6.8</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row"><span style="color: #ff0000;">Avg global cache current block receive time (ms):</span></td>
+<td class="awrnc" align="right">3.8</td>
+</tr>
+<tr>
+<td class="awrc" scope="row"><span style="color: #008000;">Avg global cache cr block build time (ms):</span></td>
+<td class="awrc" align="right">0.0</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row"><span style="color: #008000;">Avg global cache cr block send time (ms):</span></td>
+<td class="awrnc" align="right">0.0</td>
+</tr>
+<tr>
+<td class="awrc" scope="row">Global cache log flushes for cr blocks served %:</td>
+<td class="awrc" align="right">0.5</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row"><span style="color: #008000;">Avg global cache cr block flush time (ms):</span></td>
+<td class="awrnc" align="right">29.3</td>
+</tr>
+<tr>
+<td class="awrc" scope="row">Avg global cache current block pin time (ms):</td>
+<td class="awrc" align="right">1.4</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row">Avg global cache current block send time (ms):</td>
+<td class="awrnc" align="right">0.0</td>
+</tr>
+<tr>
+<td class="awrc" scope="row">Global cache log flushes for current blocks served %:</td>
+<td class="awrc" align="right">2.1</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row">Avg global cache current block flush time (ms):</td>
+<td class="awrnc" align="right">30.8</td>
+</tr>
+</tbody>
+</table>
+<p>Global Cache and Enqueue Services &#8211; Messaging Statistics</p>
+<table border="1" summary="This table displays messaging statistics for Global Cache and Enqueue Services" width="500">
+<tbody>
+<tr>
+<td class="awrnc" scope="row"><strong><span style="color: #ff0000;">Avg message sent queue time (ms):</span></strong></td>
+<td class="awrnc" align="right"><span style="color: #ff0000;"><strong>250.4 &#8211;issue instance<br />
+</strong></span></td>
+</tr>
+<tr>
+<td class="awrc" scope="row"><span style="color: #ff0000;">Avg message sent queue time on ksxp (ms):</span></td>
+<td class="awrc" align="right">6.8</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row">Avg message received queue time (ms):</td>
+<td class="awrnc" align="right">3.0</td>
+</tr>
+<tr>
+<td class="awrc" scope="row">Avg GCS message process time (ms):</td>
+<td class="awrc" align="right">1.6</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row">Avg GES message process time (ms):</td>
+<td class="awrnc" align="right">0.0</td>
+</tr>
+<tr>
+<td class="awrc" scope="row">% of direct sent messages:</td>
+<td class="awrc" align="right">43.52</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row">% of indirect sent messages:</td>
+<td class="awrnc" align="right">45.21</td>
+</tr>
+<tr>
+<td class="awrc" scope="row">% of flow controlled messages:</td>
+<td class="awrc" align="right">11.27</td>
+</tr>
+</tbody>
+</table>
+<p>&nbsp;</p>
+<p>TIPS:<br />
+AWR中的<strong>Average message queue time</strong> 数据来自 (G)V$GES_STATISTICS. 该值是把indirect message到message队列和发送它所需的时间(GCS/GES communication layer). 我们需要查看KSXP消息统计时间，以确定IPC层中是否存在问题。 IPC时间通常&lt;1ms，您可以查询X$KSXPCLIENT以获取更多数据， 该值很高时也有可能在这段时间内CPU非常繁忙（100％CPU）或者 interconnect达到顶峰, 这点需要结合OSW确认。</p>
+<p># instance 2</p>
+<p>Global Cache Load Profile</p>
+<table border="1" summary="This table displays information about global cache load profile" width="500">
+<tbody>
+<tr>
+<th class="awrnobg" scope="col"></th>
+<th class="awrbg" scope="col">Per Second</th>
+<th class="awrbg" scope="col">Per Transaction</th>
+</tr>
+<tr>
+<td class="awrnc" scope="row">Global Cache blocks received:</td>
+<td class="awrnc" align="right">96.24</td>
+<td class="awrnc" align="right">0.75</td>
+</tr>
+<tr>
+<td class="awrc" scope="row">Global Cache blocks served:</td>
+<td class="awrc" align="right">1,043.19</td>
+<td class="awrc" align="right">8.17</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row">GCS/GES messages received:</td>
+<td class="awrnc" align="right">3,607.20</td>
+<td class="awrnc" align="right">28.26</td>
+</tr>
+<tr>
+<td class="awrc" scope="row">GCS/GES messages sent:</td>
+<td class="awrc" align="right">1,342.88</td>
+<td class="awrc" align="right">10.52</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row">DBWR Fusion writes:</td>
+<td class="awrnc" align="right">3.09</td>
+<td class="awrnc" align="right">0.02</td>
+</tr>
+<tr>
+<td class="awrc" scope="row">Estd Interconnect traffic (KB)</td>
+<td class="awrc" align="right">19,197.66</td>
+<td class="awrc" align="right"></td>
+</tr>
+</tbody>
+</table>
+<p>Global Cache Efficiency Percentages (Target local+remote 100%)</p>
+<table border="1" summary="This table displays global cache efficiency percentages" width="500">
+<tbody>
+<tr>
+<td class="awrnc" scope="row">Buffer access &#8211; local cache %:</td>
+<td class="awrnc" align="right">99.43</td>
+</tr>
+<tr>
+<td class="awrc" scope="row">Buffer access &#8211; remote cache %:</td>
+<td class="awrc" align="right">0.20</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row">Buffer access &#8211; disk %:</td>
+<td class="awrnc" align="right">0.37</td>
+</tr>
+</tbody>
+</table>
+<p>Global Cache and Enqueue Services &#8211; Workload Characteristics</p>
+<table border="1" summary="This table displays workload characteristics for global cache and enqueue services" width="500">
+<tbody>
+<tr>
+<td class="awrnc" scope="row">Avg global enqueue get time (ms):</td>
+<td class="awrnc" align="right">3.5</td>
+</tr>
+<tr>
+<td class="awrc" scope="row"><span style="color: #ff0000;">Avg global cache cr block receive time (ms):</span></td>
+<td class="awrc" align="right">509.7</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row"><span style="color: #ff0000;">Avg global cache current block receive time (ms):</span></td>
+<td class="awrnc" align="right">96.6</td>
+</tr>
+<tr>
+<td class="awrc" scope="row"><span style="color: #008000;">Avg global cache cr block build time (ms):</span></td>
+<td class="awrc" align="right">0.0</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row"><span style="color: #008000;">Avg global cache cr block send time (ms):</span></td>
+<td class="awrnc" align="right">0.0</td>
+</tr>
+<tr>
+<td class="awrc" scope="row">Global cache log flushes for cr blocks served %:</td>
+<td class="awrc" align="right">1.0</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row"><span style="color: #008000;">Avg global cache cr block flush time (ms):</span></td>
+<td class="awrnc" align="right">1.3</td>
+</tr>
+<tr>
+<td class="awrc" scope="row">Avg global cache current block pin time (ms):</td>
+<td class="awrc" align="right">0.2</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row">Avg global cache current block send time (ms):</td>
+<td class="awrnc" align="right">0.0</td>
+</tr>
+<tr>
+<td class="awrc" scope="row">Global cache log flushes for current blocks served %:</td>
+<td class="awrc" align="right">0.1</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row">Avg global cache current block flush time (ms):</td>
+<td class="awrnc" align="right">1.7</td>
+</tr>
+</tbody>
+</table>
+<p>Global Cache and Enqueue Services &#8211; Messaging Statistics</p>
+<table border="1" summary="This table displays messaging statistics for Global Cache and Enqueue Services" width="500">
+<tbody>
+<tr>
+<td class="awrnc" scope="row"><span style="color: #ff0000;">Avg message sent queue time (ms):</span></td>
+<td class="awrnc" align="right">0.0</td>
+</tr>
+<tr>
+<td class="awrc" scope="row"><span style="color: #ff0000;">Avg message sent queue time on ksxp (ms):</span></td>
+<td class="awrc" align="right">142.6</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row">Avg message received queue time (ms):</td>
+<td class="awrnc" align="right">0.0</td>
+</tr>
+<tr>
+<td class="awrc" scope="row">Avg GCS message process time (ms):</td>
+<td class="awrc" align="right">0.0</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row">Avg GES message process time (ms):</td>
+<td class="awrnc" align="right">0.0</td>
+</tr>
+<tr>
+<td class="awrc" scope="row">% of direct sent messages:</td>
+<td class="awrc" align="right">73.94</td>
+</tr>
+<tr>
+<td class="awrnc" scope="row">% of indirect sent messages:</td>
+<td class="awrnc" align="right">18.43</td>
+</tr>
+<tr>
+<td class="awrc" scope="row">% of flow controlled messages:</td>
+<td class="awrc" align="right">7.63</td>
+</tr>
+</tbody>
+</table>
+<p>Tips:</p>
+<p>Avg global cache cr block receive time (ms) 从请求实例发送消息到mastering instance花费的时间。这个时间包括在holding instance生成数据块一致性读映像的时间。CR数据块获取耗费的时间不应该大于15ms。</p>
+<p>Avg global cache current block receive time (ms): 从请求实例发送消息到mastering instance（2-way get）和一些到holding instance (3-way get)花费的时间。这个时间包括holding instance日志刷新花费的时间。Current Block获取耗费的时间不大于30ms.</p>
+<p>Avg message sent queue time on ksxp (ms)对端IPC层确认收到的消息并返回ACK所花费的时间，通常是个很小的毫秒值，直接反应了网络延迟，一般小于1ms, The send time is measured when a block is handed to the IPC layer to be sent. The requests are queued in a completion queue, and the send time is measured from when a block is handed off to the IPC layer until the system call returns a completion, i.e. a status indicating that the send request has been successfully passed on to the network and control returns to the cache layer.</p>
+<p>如果该值比较大，可能是CLUSTER INTERCONNECT和LMS进程出现了问题。<br />
+做ipc诊断：<br />
+oradebug setmypid<br />
+oradebug ipc</p>
+<p>1）如果网络配置没有问题，可以检查一下TCP 和UDP的buffer是否不足<br />
+root#netstat -s | grep overflow 值为了0一般情况下。<br />
+root#netstat -i<br />
+2) 查看负载ps aux | grep lms</p>
+<p>查看是否是有某些表产生了过多的global cr request</p>
+<pre> select  STATISTIC_NAME stat,
+            OWNER,
+            OBJECT_NAME obj,
+            sum(value) val
+       from v$segment_statistics
+      where STATISTIC_NAME like 'global%'
+        and value &gt; 10000
+      group by  STATISTIC_NAME,OWNER,OBJECT_NAME
+      order by val desc;
+</pre>
+<p>2、查看一段时间内，CR的值是否很大。</p>
+<pre>select CR_REQUESTS cr,
+          CURRENT_REQUESTS cur,
+          DATA_REQUESTS data,
+         UNDO_REQUESTS undo,
+          TX_REQUESTS tx
+     from v$cr_block_server;</pre>
+<h3>确认问题节点</h3>
+<table border="1">
+<tbody>
+<tr>
+<th>WAIT time</th>
+<th>NODE1</th>
+<th>NODE2</th>
+</tr>
+<tr>
+<td>Avg global cache cr block receive time (ms)</td>
+<td> 6.8</td>
+<td> 509.7</td>
+</tr>
+<tr>
+<td>Avg global cache current block receive time (ms)</td>
+<td> 3.8</td>
+<td> 96.6</td>
+</tr>
+</tbody>
+</table>
+<p>Node:</p>
+<p>RAC环境中，<span style="color: #ff0000;">慢的节点会导致其他节点出现gc性能问题，</span>根据这个逻辑，确认是节点1 出了问题。</p>
+<p>#查看当时的LMS进程CPU使用</p>
+<pre># node1
+oracle@qdty1:/home/oracle:11G&gt; ps -efl|head -n 1;ps -efl|grep lms
+  F S      UID   PID  PPID  C PRI NI             ADDR   SZ            WCHAN    STIME TTY       TIME COMD
+1401 S   oracle  5117     1 <strong><span style="color: #ff0000;">237</span> </strong>178 20 e000001c934ba340 94816 e000000792a7f050  Jul 13  ?        15776:29 ora_lms1_tyjc1
+1401 S     grid 23810     1  0 178 20 e000001c9de0e040 90895 e000000792a7f1d0  Jan 25  ?        1550:30 asm_lms0_+ASM1
+1401 R   oracle  5119     1 <strong><span style="color: #ff0000;">254</span> </strong>178 20 e000001ce7c1b9c0 94816                -  Jul 13  ?        16214:17 ora_lms2_tyjc1
+401 S   oracle  9366  7730  0 154 20 e000001cdb304c40   30 e000000da0da6472 10:50:38 pts/4     0:00 grep lms
+1401 R   oracle  5115     1 <span style="color: #ff0000;"><strong>252</strong> </span>178 20 e000001cf7042a00 94752                -  Jul 13  ?        16329:36 ora_lms0_tyjc1
+
+# node 2
+oracle@qdty2:/home/oracle:11G&gt; ps -efl|head -n 1;ps -efl|grep lms|grep -v grep
+  F S      UID   PID  PPID  C PRI NI             ADDR   SZ            WCHAN    STIME TTY       TIME COMD
+1401 S     grid 12516     1  0 178 20 e000001b43146400 90854 e000000792d71348  Jan 25  ?        1461:04 asm_lms0_+ASM2
+1401 S   oracle  6446     1 <strong><span style="color: #ff0000;">24</span></strong> 178 20 e000001ef09b0d00 95666 e000000792d710d0  Jul 13  ?        16447:18 ora_lms2_tyjc2
+1401 S   oracle  6444     1 <strong><span style="color: #ff0000;">30</span></strong> 178 20 e000001ebe6c7d00 95666 e000000792d71248  Jul 13  ?        17583:22 ora_lms1_tyjc2
+1401 S   oracle  6442     1 <strong>43</strong> 178 20 e000001e7bc97c80 95666 e000000792d71240  Jul 13  ?        17764:57 ora_lms0_tyjc2
+</pre>
+<p>Note:<br />
+当前为HPUX 11.31平台，节点1所以PS显示的C[PU] 列会超过100%现象， 但也表明了当前的CPU是非常繁忙。节点2是正常的。</p>
+<p># node1</p>
+<h3 id="Instance_Activity_Stats" class="awr custom-awr-header">Instance Activity Stats</h3>
+<table id="Instance_Activity_Stats-table" class="custom-awr-table table-to-csv-container-table tablesorter" border="1" summary="This table displays Instance activity statistics. For each instance, activity total, activity per second, and activity per transaction are displayed">
+<thead>
+<tr>
+<th class="awrbg header" scope="col">Statistic</th>
+<th class="awrbg header" scope="col">Total</th>
+<th class="awrbg header" scope="col">per Second</th>
+<th class="awrbg header" scope="col">per Trans</th>
+</tr>
+</thead>
+<tbody>
+<tr class="">
+<td class="awrnc" scope="row"><strong><span style="color: #ff0000;">data <span class="smart-cell-title smart-cell-title-strike-through">blocks</span> consistent <span class="smart-cell-title smart-cell-title-strike-through">reads</span> &#8211; undo records applied</span></strong></td>
+<td class="awrnc smart-number" title="original: 250,472,965, click to cycle through units" align="right"><span style="color: #ff0000;"><strong>3.7 TB</strong></span></td>
+<td class="awrnc smart-number" title="original: 69,121.24, click to cycle through units" align="right">1.1 GB</td>
+<td class="awrnc smart-number" title="original: 73.07, click to cycle through units" align="right">1.1 MB</td>
+</tr>
+<tr class="">
+<td class="awrc" scope="row">rollback changes &#8211; undo records applied</td>
+<td class="awrc" align="right">4,074,774</td>
+<td class="awrc" align="right">1,124.49</td>
+<td class="awrc" align="right">1.19</td>
+</tr>
+<tr class="">
+<td class="awrnc" scope="row">transaction tables consistent <span class="smart-cell-title smart-cell-title-strike-through">reads</span> &#8211; undo records applied</td>
+<td class="awrnc smart-number" title="original: 6,405, click to cycle through units" align="right">100.1 MB</td>
+<td class="awrnc smart-number" title="original: 1.77, click to cycle through units" align="right">28.3 KB</td>
+<td class="awrnc smart-number" title="original: 0.00, click to cycle through units" align="right">0 B</p>
+<p>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+<p># node 2</p>
+<h3 id="Instance_Activity_Stats" class="awr custom-awr-header">Instance Activity Stats</h3>
+<table id="Instance_Activity_Stats-table" class="custom-awr-table table-to-csv-container-table tablesorter" border="1" summary="This table displays Instance activity statistics. For each instance, activity total, activity per second, and activity per transaction are displayed">
+<thead>
+<tr>
+<th class="awrbg header" scope="col">Statistic</th>
+<th class="awrbg header" scope="col">Total</th>
+<th class="awrbg header" scope="col">per Second</th>
+<th class="awrbg header" scope="col">per Trans</th>
+</tr>
+</thead>
+<tbody>
+<tr class="">
+<td class="awrc" scope="row">data <span class="smart-cell-title smart-cell-title-strike-through">blocks</span> consistent <span class="smart-cell-title smart-cell-title-strike-through">reads</span> &#8211; undo records applied</td>
+<td class="awrc smart-number" title="original: 304,614, click to cycle through units" align="right">4.6 GB</td>
+<td class="awrc smart-number" title="original: 172.03, click to cycle through units" align="right">2.7 MB</td>
+<td class="awrc smart-number" title="original: 1.35, click to cycle through units" align="right">21.6 KB</td>
+</tr>
+<tr class="">
+<td class="awrc" scope="row">rollback changes &#8211; undo records applied</td>
+<td class="awrc" align="right">1,043</td>
+<td class="awrc" align="right">0.59</td>
+<td class="awrc" align="right">0.00</td>
+</tr>
+<tr class="">
+<td class="awrc" scope="row">transaction tables consistent <span class="smart-cell-title smart-cell-title-strike-through">reads</span> &#8211; undo records applied</td>
+<td class="awrc smart-number" title="original: 7, click to cycle through units" align="right">112.0 KB</td>
+<td class="awrc smart-number" title="original: 0.00, click to cycle through units" align="right">0 B</td>
+<td class="awrc smart-number" title="original: 0.00, click to cycle through units" align="right">0 B</p>
+<p>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+<p>如果不是应用SQL和网络问题，那为什么LMS会占用那么高的cpu呢？ 去MOS中搜，不难发现，又命中了一个bug <strong>14672057</strong>.</p>
+<p>原因是因为从11.2.0.2版本开始为了解决之前的bug 9569316,而引入了_max_cr_rollbacks参数， 该参数默认为0。 表示最大cr block rolback blocks.没有找到过多的关于该参数的解释。如果当出现花费大量的时间在undo cr block生成时，把该参数调整为非0值，会启用light work 规则，有助于减少lms进程压力。 该bug只影响11.2.0.2和11.2.0.3, 解决解决方法可以动态的修改 &#8220;_max_cr_rollbacks&#8221;参数解决，所以没有再提供one-off patch, 该bug 在11.2.0.4版本已修复， 当执行完如下修改后，GC 等待和enq 瞬间消失，恢复了正常状态。所以问题不是节点1 top event中表现的index split问题。</p>
+<pre>SQL&gt; alter system set "_max_cr_rollbacks"=200;
+System altered.
+</pre>
+<p># 修改后LMS 进程 node1</p>
+<pre>oracle@qdty1:/home/oracle:11G&gt; ps -efl|head -n 1;ps -efl|grep lms|grep -v grep
+  F S      UID   PID  PPID  C PRI NI             ADDR   SZ            WCHAN    STIME TTY       TIME COMD
+1401 S   oracle  5117     1 <strong><span style="color: #ff0000;">55</span></strong> 178 20 e000001c934ba340 94816 e000000792a7f0d0  Jul 13  ?        15778:04 ora_lms1_tyjc1
+1401 S     grid 23810     1  0 178 20 e000001c9de0e040 90895 e000000792a7f350  Jan 25  ?        1550:30 asm_lms0_+ASM1
+1401 S   oracle  5119     1 <strong><span style="color: #ff0000;">76</span></strong> 178 20 e000001ce7c1b9c0 94816 e000000792a7f1c8  Jul 13  ?        16216:40 ora_lms2_tyjc1
+1401 S   oracle  5115     1 <strong><span style="color: #ff0000;">80</span></strong> 178 20 e000001cf7042a00 94752 e000000792a7f3c0  Jul 13  ?        16331:29 ora_lms0_tyjc1
+</pre>
+        <div class="gave" >
+            <a href="javascript:;" id="gave">打赏</a>
+            <div class="code" id="wechatCode" style="display: none">
+                <img src="http://www.anbob.com/images/wechatpay.jpg" alt="微信扫一扫支付">
+                <div><img src="http://www.anbob.com/wp-content/plugins/wechat-reward/assets/ico-wechat.jpg" alt="微信logo" class="ico-wechat">微信扫一扫，打赏作者吧～</i></div>
+            </div>
+        </div>	
+</div>
+
+<!-- article-page start -->
+<!-- article-page end -->
+
+<p class="tags"><a href="http://www.anbob.com/archives/tag/_max_cr_rollbacks" rel="tag">_max_cr_rollbacks</a>, <a href="http://www.anbob.com/archives/tag/gc-cr-grant-2-way" rel="tag">gc cr grant 2-way</a>, <a href="http://www.anbob.com/archives/tag/gc-current-grant-2-way" rel="tag">gc current grant 2-way</a></p>
+<!--<p class="forward"><a href="javascript:window.open('http://v.t.sina.com.cn/share/share.php?title='+encodeURIComponent(document.title.substring(0,76))+'&url='+encodeURIComponent(location.href)+'&rcontent=','_blank','scrollbars=no,width=600,height=450,left=75,top=20,status=no,resizable=yes'); void 0" style=”color:#000000;text-decoration:none;font-size:12px;font-weight:normal"><SPAN style="PADDING-RIGHT: 5px; PADDING-LEFT: 5px; FONT-SIZE: 12px; PADDING-BOTTOM: 0px; MARGIN-LEFT: 10px; CURSOR: pointer; PADDING-TOP: 5px"><IMG alt=转发到新浪微博 src="http://t.sina.com.cn/favicon.ico" align=absMiddle border=0>&nbsp;转发到新浪微博</SPAN></a></p>-->
+</div><!-- .post : end -->
+
+<!-- related-posts start -->
+<!-- related-posts end -->
+
+				
+
+<!-- You can start editing here. -->
+<div id="comments" class="clearfix">
+<!-- If comments are open, but there are no comments. -->
+<h4>目前这篇文章还没有评论<a href="http://www.anbob.com/archives/3227.html/feed">(Rss)</a></h4>
+
+<div id="respond"> 
+				
+<h5>我要评论</h5>
+		  
+<form action="http://www.anbob.com/wp-comments-post.php" method="post" id="commentform"> 
+
+				  	
+<p><input type="text" name="author" id="author" value="" size="22" tabindex="1" /> 
+<label for="author">姓名 (此项必须填写)</label></p>
+
+<p><input type="text" name="email" id="email" value="" size="22" tabindex="2" /> 
+<label for="email">邮箱(我保证不会公开) (此项必须填写)</label></p> 
+
+<p><input type="text" name="url" id="url" value="" size="22" tabindex="3" /> 
+<label for="url">个人站点</label></p> 
+
+					 
+<p><textarea name="comment" id="comment"  rows="7" tabindex="4"></textarea></p> 
+<p><input type="submit" class="submit" name="submit" id="submit" tabindex="5" value="+ 发布评论" /> 
+<input type='hidden' name='comment_post_ID' value='3227' id='comment_post_ID' />
+<input type='hidden' name='comment_parent' id='comment_parent' value='0' />
+<span class="cancel"><a rel="nofollow" id="cancel-comment-reply-link" href="/archives/3227.html#respond" style="display:none;">点击这里取消回复。</a></span>
+</p> 
+</form>
+</div><!-- #respond : end -->
+</div>
+<!-- postnavi start -->
+<div class="postnavi">
+<p class="prev"><span>上一篇：</span> <a href="http://www.anbob.com/archives/3233.html" rel="next">Troubleshooting &#8220;latch: row cache objects&#8221; case and Event 10089 to do.</a></p>
+<p class="next"><span>下一篇：</span> <a href="http://www.anbob.com/archives/3213.html" rel="prev">Troubleshooting ORA-600 issue related to memory curruted when using DBLINK</a></p>
+</div>
+<!-- postnavi end -->
+				
+</div><!-- #content : end -->
+
+<div id="sidebar" >
+<div class="sidebar">
+	<div class="widget box">
+<iframe width="100%" height="380" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=380&fansRow=2&ptype=1&speed=0&skin=1&isTitle=1&noborder=1&isWeibo=1&isFans=0&uid=1741030513&verifier=8c7c607d&dpc=1"></iframe>
+	</div>
+	<!--
+<div class="widget box">
+	<h3>最新评论</h3>			
+		<ul> 
+	<li class="rc-navi rc-clearfix"><span class="rc-loading">正在加载...</span></li><li id="rc-comment-temp" class="rc-item rc-comment rc-clearfix"><div class="rc-info"></div><div class="rc-timestamp"></div><div class="rc-excerpt"></div></li><li id="rc-ping-temp" class="rc-item rc-ping rc-clearfix"><span class="rc-label"></span></li>		</ul>
+        </div>
+-->
+        
+    <div class="widget box">
+	<h3>最新文章</h3>			
+		<ul class="newbox"> 
+		<li><a href='http://www.anbob.com/archives/3260.html'>Troubleshooting 12C node2 CRS start fail with ORA-12547 and ORA-15077 in Flex ASM 案例</a></li>
+	<li><a href='http://www.anbob.com/archives/3246.html'>浅谈Oracle GoldenGate 18c</a></li>
+	<li><a href='http://www.anbob.com/archives/3239.html'>2018年终总结</a></li>
+	<li><a href='http://www.anbob.com/archives/3233.html'>Troubleshooting &#8220;latch: row cache objects&#8221; case and Event 10089 to do.</a></li>
+	<li><a href='http://www.anbob.com/archives/3227.html'>Troubleshooting  high “gc current grant 2-way” and &#8220;gc cr grant 2-way&#8221; 案例(二)</a></li>
+	<li><a href='http://www.anbob.com/archives/3213.html'>Troubleshooting ORA-600 issue related to memory curruted when using DBLINK</a></li>
+	<li><a href='http://www.anbob.com/archives/3208.html'>ORACLE SCN issue Best Practice (最佳实践)</a></li>
+	<li><a href='http://www.anbob.com/archives/3205.html'>Oracle12c R2注意事项： 因BUG生成大量的trace file 包含KRB: (rman module)</a></li>
+	<li><a href='http://www.anbob.com/archives/3201.html'>Oracle12c R2注意事项：DB password file in ASM (DataGuard环境重建PWD）</a></li>
+	<li><a href='http://www.anbob.com/archives/3198.html'>How to delete SYS.KUPC$ service after kill datapump job</a></li>
+		</ul>
+        </div>
+        
+    <div class="widget box">
+	<h3>标签云集</h3>			
+		<ul class="tagsindex"> 
+	 <a href="http://www.anbob.com/archives/tag/asmm" class="tag-cloud-link tag-link-15 tag-link-position-1" style="color:#ab0e43;font-size: 10pt;" aria-label="automatic feature (2个项目);">automatic feature</a>
+<a href="http://www.anbob.com/archives/tag/oracle-backuprestore" class="tag-cloud-link tag-link-84 tag-link-position-2" style="color:#447e68;font-size: 12.641025641026pt;" aria-label="BACKUP/RECOVERY (31个项目);">BACKUP/RECOVERY</a>
+<a href="http://www.anbob.com/archives/tag/dg" class="tag-cloud-link tag-link-72 tag-link-position-3" style="color:#5abfb6;font-size: 10.564102564103pt;" aria-label="DataGuard (4个项目);">DataGuard</a>
+<a href="http://www.anbob.com/archives/tag/datapump" class="tag-cloud-link tag-link-140 tag-link-position-4" style="color:#290762;font-size: 10pt;" aria-label="datapump (2个项目);">datapump</a>
+<a href="http://www.anbob.com/archives/tag/goldengate-sync-data-technology" class="tag-cloud-link tag-link-133 tag-link-position-5" style="color:#16c02b;font-size: 11.076923076923pt;" aria-label="Goldengate (7个项目);">Goldengate</a>
+<a href="http://www.anbob.com/archives/tag/goldengate12-2" class="tag-cloud-link tag-link-138 tag-link-position-6" style="color:#48f253;font-size: 10pt;" aria-label="Goldengate12.2 (2个项目);">Goldengate12.2</a>
+<a href="http://www.anbob.com/archives/tag/mysql-2" class="tag-cloud-link tag-link-80 tag-link-position-7" style="color:#307953;font-size: 10.769230769231pt;" aria-label="mysql (5个项目);">mysql</a>
+<a href="http://www.anbob.com/archives/tag/new-feature" class="tag-cloud-link tag-link-141 tag-link-position-8" style="color:#17e4bb;font-size: 10pt;" aria-label="new feature (2个项目);">new feature</a>
+<a href="http://www.anbob.com/archives/tag/nosql" class="tag-cloud-link tag-link-127 tag-link-position-9" style="color:#d0fe9d;font-size: 10pt;" aria-label="Nosql (2个项目);">Nosql</a>
+<a href="http://www.anbob.com/archives/tag/ora-600" class="tag-cloud-link tag-link-132 tag-link-position-10" style="color:#544699;font-size: 11.435897435897pt;" aria-label="ora-600 (10个项目);">ora-600</a>
+<a href="http://www.anbob.com/archives/tag/ora-7445" class="tag-cloud-link tag-link-135 tag-link-position-11" style="color:#f1dba3;font-size: 10.769230769231pt;" aria-label="ora-7445 (5个项目);">ora-7445</a>
+<a href="http://www.anbob.com/archives/tag/oracle11g" class="tag-cloud-link tag-link-91 tag-link-position-12" style="color:#3a6e1b;font-size: 12.102564102564pt;" aria-label="ORACLE11g (19个项目);">ORACLE11g</a>
+<a href="http://www.anbob.com/archives/tag/oracle-12-2" class="tag-cloud-link tag-link-197 tag-link-position-13" style="color:#95085;font-size: 10.564102564103pt;" aria-label="oracle 12.2 (4个项目);">oracle 12.2</a>
+<a href="http://www.anbob.com/archives/tag/oracle-12c" class="tag-cloud-link tag-link-134 tag-link-position-14" style="color:#edc312;font-size: 11.846153846154pt;" aria-label="ORACLE 12C (15个项目);">ORACLE 12C</a>
+<a href="http://www.anbob.com/archives/tag/oracle%e9%85%8d%e7%bd%ae" class="tag-cloud-link tag-link-82 tag-link-position-15" style="color:#e6ec04;font-size: 12.153846153846pt;" aria-label="ORACLE ADMIN (20个项目);">ORACLE ADMIN</a>
+<a href="http://www.anbob.com/archives/tag/oracle%e8%ae%be%e7%bd%ae" class="tag-cloud-link tag-link-76 tag-link-position-16" style="color:#521a1;font-size: 11.717948717949pt;" aria-label="ORACLE ADMIN (13个项目);">ORACLE ADMIN</a>
+<a href="http://www.anbob.com/archives/tag/oracle-asm" class="tag-cloud-link tag-link-102 tag-link-position-17" style="color:#c066b3;font-size: 11.615384615385pt;" aria-label="oracle asm (12个项目);">oracle asm</a>
+<a href="http://www.anbob.com/archives/tag/oracle-awr" class="tag-cloud-link tag-link-114 tag-link-position-18" style="color:#39633e;font-size: 10.307692307692pt;" aria-label="oracle AWR (3个项目);">oracle AWR</a>
+<a href="http://www.anbob.com/archives/tag/oracle-dataguard" class="tag-cloud-link tag-link-107 tag-link-position-19" style="color:#611877;font-size: 10.948717948718pt;" aria-label="oracle dataguard (6个项目);">oracle dataguard</a>
+<a href="http://www.anbob.com/archives/tag/oracle-gg" class="tag-cloud-link tag-link-103 tag-link-position-20" style="color:#e7a134;font-size: 10.769230769231pt;" aria-label="oracle goldengate (5个项目);">oracle goldengate</a>
+<a href="http://www.anbob.com/archives/tag/oracle-internal" class="tag-cloud-link tag-link-94 tag-link-position-21" style="color:#19d81b;font-size: 12.666666666667pt;" aria-label="oracle internal (32个项目);">oracle internal</a>
+<a href="http://www.anbob.com/archives/tag/oracle-oem" class="tag-cloud-link tag-link-105 tag-link-position-22" style="color:#2ead41;font-size: 10.564102564103pt;" aria-label="oracle oem (4个项目);">oracle oem</a>
+<a href="http://www.anbob.com/archives/tag/oracle-plsql" class="tag-cloud-link tag-link-77 tag-link-position-23" style="color:#971420;font-size: 13.25641025641pt;" aria-label="oracle plsql/sql (55个项目);">oracle plsql/sql</a>
+<a href="http://www.anbob.com/archives/tag/oracle-rac" class="tag-cloud-link tag-link-101 tag-link-position-24" style="color:#5f8164;font-size: 12.307692307692pt;" aria-label="oracle rac (23个项目);">oracle rac</a>
+<a href="http://www.anbob.com/archives/tag/oracle%e5%ae%89%e5%85%a8" class="tag-cloud-link tag-link-99 tag-link-position-25" style="color:#b93efc;font-size: 11.794871794872pt;" aria-label="ORACLE安全 (14个项目);">ORACLE安全</a>
+<a href="http://www.anbob.com/archives/tag/oracle%e5%ae%89%e8%a3%85" class="tag-cloud-link tag-link-88 tag-link-position-26" style="color:#6807ff;font-size: 11.794871794872pt;" aria-label="oracle安装 (14个项目);">oracle安装</a>
+<a href="http://www.anbob.com/archives/tag/oracle%e5%bc%80%e5%8f%91" class="tag-cloud-link tag-link-96 tag-link-position-27" style="color:#196ebf;font-size: 10pt;" aria-label="oracle开发 (2个项目);">oracle开发</a>
+<a href="http://www.anbob.com/archives/tag/oracle-%e5%bc%82%e5%b8%b8" class="tag-cloud-link tag-link-90 tag-link-position-28" style="color:#a6ae38;font-size: 13.615384615385pt;" aria-label="oracle 异常 (76个项目);">oracle 异常</a>
+<a href="http://www.anbob.com/archives/tag/oracle%e6%95%99%e6%9d%90" class="tag-cloud-link tag-link-83 tag-link-position-29" style="color:#a1ffe1;font-size: 10.769230769231pt;" aria-label="oracle教材 (5个项目);">oracle教材</a>
+<a href="http://www.anbob.com/archives/tag/oracle-%e6%9d%83%e9%99%90%e7%ae%a1%e7%90%86" class="tag-cloud-link tag-link-11 tag-link-position-30" style="color:#14a56;font-size: 11.076923076923pt;" aria-label="oracle 权限管理 (7个项目);">oracle 权限管理</a>
+<a href="http://www.anbob.com/archives/tag/oracle%e7%89%a9%e5%8c%96%e8%a7%86%e5%9b%be" class="tag-cloud-link tag-link-97 tag-link-position-31" style="color:#81d8bf;font-size: 10pt;" aria-label="oracle物化视图 (2个项目);">oracle物化视图</a>
+<a href="http://www.anbob.com/archives/tag/oracle%e7%ae%a1%e7%90%86" class="tag-cloud-link tag-link-86 tag-link-position-32" style="color:#d79421;font-size: 12.589743589744pt;" aria-label="oracle管理 (30个项目);">oracle管理</a>
+<a href="http://www.anbob.com/archives/tag/linux-network" class="tag-cloud-link tag-link-108 tag-link-position-33" style="color:#80f0e9;font-size: 10pt;" aria-label="OS Command (2个项目);">OS Command</a>
+<a href="http://www.anbob.com/archives/tag/linux6" class="tag-cloud-link tag-link-71 tag-link-position-34" style="color:#2e9fcc;font-size: 10pt;" aria-label="OS Command (2个项目);">OS Command</a>
+<a href="http://www.anbob.com/archives/tag/linux%e5%91%bd%e4%bb%a4" class="tag-cloud-link tag-link-89 tag-link-position-35" style="color:#345430;font-size: 11.333333333333pt;" aria-label="OS Command (9个项目);">OS Command</a>
+<a href="http://www.anbob.com/archives/tag/partition" class="tag-cloud-link tag-link-137 tag-link-position-36" style="color:#8ae10a;font-size: 10.307692307692pt;" aria-label="partition (3个项目);">partition</a>
+<a href="http://www.anbob.com/archives/tag/oracle%e4%bc%98%e5%8c%96" class="tag-cloud-link tag-link-10 tag-link-position-37" style="color:#2eba21;font-size: 13.461538461538pt;" aria-label="Performance tuning (66个项目);">Performance tuning</a>
+<a href="http://www.anbob.com/archives/tag/shell" class="tag-cloud-link tag-link-111 tag-link-position-38" style="color:#7ffc65;font-size: 11.333333333333pt;" aria-label="shell (9个项目);">shell</a>
+<a href="http://www.anbob.com/archives/tag/sqlserver%e6%81%a2%e5%a4%8d" class="tag-cloud-link tag-link-92 tag-link-position-39" style="color:#3e6280;font-size: 10pt;" aria-label="sqlserver恢复 (2个项目);">sqlserver恢复</a>
+<a href="http://www.anbob.com/archives/tag/oracle%e5%bc%82%e5%b8%b8" class="tag-cloud-link tag-link-81 tag-link-position-40" style="color:#41dcb5;font-size: 14pt;" aria-label="Troubleshooting (108个项目);">Troubleshooting</a>
+<a href="http://www.anbob.com/archives/tag/oracle-troubleshooting" class="tag-cloud-link tag-link-117 tag-link-position-41" style="color:#e626bc;font-size: 10.564102564103pt;" aria-label="Troubleshooting (4个项目);">Troubleshooting</a>
+<a href="http://www.anbob.com/archives/tag/%e5%a4%87%e4%bb%bd%e4%b8%8e%e6%81%a2%e5%a4%8d" class="tag-cloud-link tag-link-74 tag-link-position-42" style="color:#6c1fbd;font-size: 10.564102564103pt;" aria-label="备份与恢复 (4个项目);">备份与恢复</a>
+<a href="http://www.anbob.com/archives/tag/%e5%a4%87%e4%bb%bd%e6%81%a2%e5%a4%8d" class="tag-cloud-link tag-link-120 tag-link-position-43" style="color:#205d8d;font-size: 10pt;" aria-label="备份恢复 (2个项目);">备份恢复</a>
+<a href="http://www.anbob.com/archives/tag/%e5%ad%97%e7%ac%a6%e4%b8%b2%e5%87%bd%e6%95%b0" class="tag-cloud-link tag-link-34 tag-link-position-44" style="color:#b87e17;font-size: 10.307692307692pt;" aria-label="字符串函数 (3个项目);">字符串函数</a>
+<a href="http://www.anbob.com/archives/tag/%e6%80%a7%e8%83%bd%e7%9b%91%e6%8e%a7" class="tag-cloud-link tag-link-110 tag-link-position-45" style="color:#801f19;font-size: 10.307692307692pt;" aria-label="性能监控 (3个项目);">性能监控</a>		</ul>
+        </div>
+        
+    <div class="widget box">
+	<h3>文章索引</h3>			
+		<ul class="monthlybox"> 
+		<li><a href='http://www.anbob.com/archives/date/2019/02'>2019年二月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2019/01'>2019年一月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2018/12'>2018年十二月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2018/11'>2018年十一月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2018/10'>2018年十月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2018/09'>2018年九月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2018/08'>2018年八月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2018/07'>2018年七月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2018/06'>2018年六月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2018/05'>2018年五月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2018/04'>2018年四月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2018/03'>2018年三月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2018/01'>2018年一月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2017/12'>2017年十二月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2017/11'>2017年十一月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2017/10'>2017年十月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2017/09'>2017年九月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2017/08'>2017年八月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2017/07'>2017年七月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2017/06'>2017年六月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2017/05'>2017年五月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2017/04'>2017年四月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2017/03'>2017年三月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2017/02'>2017年二月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2017/01'>2017年一月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2016/12'>2016年十二月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2016/11'>2016年十一月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2016/10'>2016年十月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2016/09'>2016年九月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2016/08'>2016年八月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2016/07'>2016年七月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2016/06'>2016年六月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2016/05'>2016年五月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2016/04'>2016年四月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2016/03'>2016年三月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2016/02'>2016年二月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2016/01'>2016年一月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2015/12'>2015年十二月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2015/11'>2015年十一月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2015/10'>2015年十月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2015/09'>2015年九月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2015/08'>2015年八月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2015/07'>2015年七月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2015/06'>2015年六月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2015/05'>2015年五月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2015/04'>2015年四月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2015/03'>2015年三月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2015/02'>2015年二月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2015/01'>2015年一月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2014/12'>2014年十二月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2014/11'>2014年十一月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2014/10'>2014年十月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2014/09'>2014年九月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2014/08'>2014年八月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2014/07'>2014年七月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2014/06'>2014年六月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2014/05'>2014年五月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2014/04'>2014年四月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2014/03'>2014年三月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2014/02'>2014年二月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2014/01'>2014年一月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2013/12'>2013年十二月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2013/11'>2013年十一月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2013/10'>2013年十月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2013/09'>2013年九月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2013/08'>2013年八月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2013/07'>2013年七月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2013/06'>2013年六月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2013/05'>2013年五月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2013/04'>2013年四月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2013/03'>2013年三月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2013/02'>2013年二月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2013/01'>2013年一月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2012/12'>2012年十二月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2012/11'>2012年十一月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2012/10'>2012年十月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2012/09'>2012年九月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2012/08'>2012年八月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2012/07'>2012年七月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2012/06'>2012年六月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2012/05'>2012年五月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2012/04'>2012年四月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2012/03'>2012年三月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2012/02'>2012年二月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2012/01'>2012年一月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2011/12'>2011年十二月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2011/11'>2011年十一月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2011/10'>2011年十月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2011/09'>2011年九月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2011/08'>2011年八月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2011/07'>2011年七月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2011/06'>2011年六月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2011/05'>2011年五月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2011/04'>2011年四月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2011/03'>2011年三月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2011/02'>2011年二月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2011/01'>2011年一月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2010/12'>2010年十二月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2010/11'>2010年十一月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2009/12'>2009年十二月</a></li>
+	<li><a href='http://www.anbob.com/archives/date/2009/11'>2009年十一月</a></li>
+		</ul>
+        </div>
+        
+     <div class="widget box">
+       <li id="linkcat-118" class="linkcat"><h2>MySql Link</h2>
+	<ul>
+<li><a href="http://www.mysqlperformanceblog.com/" title=" (最后更新 1970 年 01 月 01 日 08:00:00)" target="_blank">MySQL Performance Blog</a></li>
+<li><a href="http://dimitrik.free.fr/blog/archives/cat_mysql.html" title=" (最后更新 1970 年 01 月 01 日 08:00:00)" target="_blank">MySQL Performance Test</a></li>
+
+	</ul>
+</li>
+  <li id="linkcat-73" class="linkcat"><h2>ORACLE Link</h2>
+	<ul>
+<li><a href="http://asktom.oracle.com" title=" (最后更新 1970 年 01 月 01 日 08:00:00)" target="_blank">ASKTOM</a></li>
+<li><a href="http://www.dbasupport.com" title=" (最后更新 1970 年 01 月 01 日 08:00:00)" target="_blank">DBASupport</a></li>
+<li><a href="https://edelivery.oracle.com" title="oracle software download (最后更新 1970 年 01 月 01 日 08:00:00)" target="_blank">Delivery ORA</a></li>
+<li><a href="http://tahiti.oracle.com/" title=" (最后更新 1970 年 01 月 01 日 08:00:00)" target="_blank">Doc ORA</a></li>
+<li><a href="http://gavinsoorma.com/" title=" (最后更新 1970 年 01 月 01 日 08:00:00)" target="_blank">Gavin Soorma</a></li>
+<li><a href="http://jonathanlewis.wordpress.com/" title=" (最后更新 1970 年 01 月 01 日 08:00:00)" target="_blank">Jonathan Lewis</a></li>
+<li><a href="http://www.oaktable.net" title=" (最后更新 1970 年 01 月 01 日 08:00:00)" target="_blank">Oaktable</a></li>
+<li><a href="http://www.orafaq.com/" title=" (最后更新 1970 年 01 月 01 日 08:00:00)" target="_blank">orafaq</a></li>
+<li><a href="http://orainternals.wordpress.com/" title=" (最后更新 1970 年 01 月 01 日 08:00:00)" target="_blank">orainternals</a></li>
+<li><a href="http://psoug.org" title=" (最后更新 1970 年 01 月 01 日 08:00:00)" target="_blank">PSOUG</a></li>
+<li><a href="http://richardfoote.wordpress.com/" title=" (最后更新 1970 年 01 月 01 日 08:00:00)" target="_blank">Richard Foote</a></li>
+<li><a href="http://www.sesebook.com/" title="ebook (最后更新 1970 年 01 月 01 日 08:00:00)">Sesebook ebook</a></li>
+<li><a href="http://ss64.com" title=" (最后更新 1970 年 01 月 01 日 08:00:00)" target="_blank">SS64</a></li>
+<li><a href="http://blog.tanelpoder.com/" title=" (最后更新 1970 年 01 月 01 日 08:00:00)" target="_blank">Tanel Poder</a></li>
+
+	</ul>
+</li>
+  <li id="linkcat-2" class="linkcat"><h2>Others Link</h2>
+	<ul>
+<li><a href="http://planet.wordpress.org/" title=" (最后更新 1970 年 01 月 01 日 08:00:00)" target="_blank">WordPress Planet</a></li>
+
+	</ul>
+</li>
+     </div>
+        
+    <div class="widget box">
+	<h3>管理功能</h3>			
+		<ul> 
+		<li><a href="http://www.anbob.com/wp-login.php">登录</a></li>
+			</ul>
+     </div>
+	 <div class="widget box">
+	<h3>微信公众号</h3>			
+		<ul>
+		<img src="http://www.anbob.com/images/wechat.jpg" width="240px" alt="ANBOB手记" />
+		</ul>
+     </div>
+	 
+	 <div id="cse-search-results"></div>
+     <script type="text/javascript">
+    var googleSearchIframeName = "cse-search-results";
+    var googleSearchFormName = "cse-search-box";
+    var googleSearchFrameWidth = 600;
+    var googleSearchDomain = "www.google.com";
+    var googleSearchPath = "/cse";
+    </script>
+    <script type="text/javascript" src="/show_afs_search.js"></script>
+</div>
+</div><!-- #sidebar : end -->
+
+</div><!-- #middle : end -->
+</div><!-- #wrapper : end -->
+<div id="footer" class="clearfix"  style="margin-top:30px; background-color:red;color:white;">
+<p>
+&#29256;&#26435;&#25152;&#26377;&copy; 2009-2018  ANBOB.COM  | &#32852;&#31995;&#25105; mail:<a  class="vanj" href="mailto:weejar@gmail.com?subject=Hello%20again">&#24352;&#32500;&#29031;</a> weibo:<a class="vanj" href="http://weibo.com/zhangweizhao">zhangweizhao</a> twitter:<a class="vanj" href="https://twitter.com/weejar">weejar</a>
+ <script language="JavaScript" src="http://s13.cnzz.com/stat.php?id=2602028&web_id=2602028" ></script>
+</p>
+</br>
+<center>&#36861;&#27714;&#21331;&#36234;&#65292;&#23436;&#21892;&#33258;&#25105;</center>
+</br>
+</div><!-- #footer : end -->
+
+<script>
+/* <![CDATA[ */
+var rcGlobal = {
+	serverUrl		:'http://www.anbob.com',
+	infoTemp		:'%REVIEWER% 在 %POST%',
+	loadingText		:'正在加载',
+	noCommentsText	:'没有任何评论',
+	newestText		:'&laquo; 最新的',
+	newerText		:'&laquo; 上一页',
+	olderText		:'下一页 &raquo;',
+	showContent		:'',
+	external		:'1',
+	avatarSize		:'20',
+	avatarPosition	:'left',
+	anonymous		:'匿名'
+};
+/* ]]> */
+</script>
+<link rel='stylesheet' id='wechat-reward-css'  href='http://www.anbob.com/wp-content/plugins/wechat-reward/assets/wechat-reward.css?ver=4.9.5' type='text/css' media='all' />
+<script type='text/javascript' src='http://www.anbob.com/wp-content/plugins/wp-recentcomments/js/wp-recentcomments-jquery.js?ver=2.2.7'></script>
+<script type='text/javascript' src='http://www.anbob.com/wp-includes/js/comment-reply.min.js?ver=4.9.5'></script>
+<script type='text/javascript'>
+/* <![CDATA[ */
+var viewsCacheL10n = {"admin_ajax_url":"http:\/\/www.anbob.com\/wp-admin\/admin-ajax.php","post_id":"3227"};
+/* ]]> */
+</script>
+<script type='text/javascript' src='http://www.anbob.com/wp-content/plugins/wp-postviews/postviews-cache.js?ver=1.68'></script>
+<script type='text/javascript' src='http://www.anbob.com/wp-includes/js/wp-embed.min.js?ver=4.9.5'></script>
+<script type='text/javascript' src='http://www.anbob.com/wp-content/plugins/wechat-reward/assets/wechat-reward.js?ver=4.9.5'></script>
+ 
+</body>
+</html>
+<!-- Dynamic page generated in 0.234 seconds. -->
+<!-- Cached page generated by WP-Super-Cache on 2019-02-20 02:24:36 -->
+
+<!-- Compression = gzip -->
