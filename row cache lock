@@ -17,3 +17,51 @@ where event='row cache lock'
    and ash.session_state='WAITING'
    and ash.sample_time > sysdate - &minutes/(60*24)
 Order by sample_time
+
+--http://www.anbob.com/archives/1860.html
+--http://www.anbob.com/archives/3233.html
+
+Check clue From AWR REPORT.
+1.Dictionary Cache statistics
+2.Latch Sleep Breakdown
+3.Latch Miss Sources
+
+To determine if the row cache is being used efficiently, execute the following SQL. If the ratio is not close to 1 then some tuning required
+
+SELECT parameter, sum(gets), sum(getmisses),
+round(100*sum(gets - getmisses) / sum(gets),2) pct_succ_gets,
+sum(modifications) updates
+FROM V$ROWCACHE
+WHERE gets > 0
+GROUP BY parameter
+order by 2;
+OR
+
+select cache#, type, parameter, gets, getmisses, modifications mod
+from v$rowcache where gets > 0 order by gets;
+OR
+
+col cache# head "Cache|no" form 999
+col parameter head "Parameter" form a25
+col type head "Type" form a12
+col subordinate# head "Sub|ordi|nate" form 9999
+col rcgets head "Cache|Gets" form 999999999999
+col rcmisses head "Cache|Misses" form 999999999999
+col rcmodifications head "Cache|Modifica|tions" form 999999999999
+col rcflushes head "Cache|Flushes" form 999999999999
+col kqrstcln head "Child#" form 999
+col lagets head "Latch|Gets" form 999999999999
+col lamisses head "Latch|Misses" form 999999999999
+col laimge head "Latch|Immediate|gets" form 999999999999
+select
+dc.kqrstcid CACHE#, dc.kqrsttxt PARAMETER, decode(dc.kqrsttyp, 1,'PARENT','SUBORDINATE') type,
+decode(dc.kqrsttyp, 2, kqrstsno, null) subordinate#,
+dc.kqrstgrq rcgets, dc.kqrstgmi rcmisses, dc.kqrstmrq rcmodifications, dc.kqrstmfl rcflushes, dc.kqrstcln,
+la.gets lagets, la.misses lamisses, la.immediate_gets laimge
+from x$kqrst dc,
+v$latch_children la
+where dc.inst_id = userenv('instance')
+and la.child# = dc.kqrstcln
+and la.name = 'row cache objects'
+order by rcgets desc;
+
