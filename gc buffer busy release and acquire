@@ -24,3 +24,25 @@ WHERE  sample_time BETWEEN to_Date('11/06/2018 13:51:00','dd/mm/yyyy hh24:mi:ss'
   AND wait_class = 'Cluster' and event='gc buffer busy acquire'
 GROUP BY sql_id, SQL_PLAN_HASH_VALUE, SQL_PLAN_LINE_ID
 ORDER BY cnt DESC;
+
+
+
+
+
+#GC #Buffer #Busy #Waits
+ in #RAC
+
+GC buffer busy event means that a session is trying to access a buffer, but there is an open request for Global cache lock for that block already, and so,
+ the session must wait for the GC lock request to complete before proceeding. This wait is instrumented as 'gc buffer busy' event.
+
+From 11g onwards, GC buffer busy event differentiated between two cases:
+
+1-If existing GC open request originated from the local instance, then the current session will wait for 'gc buffer busy acquire'.
+ Essentially, the current process is waiting for another process in the local instance to acquire GC lock, on behalf of the local instance. Once GC lock is acquired, 
+the current process can access that buffer without additional GC processing (if the lock is acquired in a compatible mode).
+
+2-If existing GC open request originated from a remote instance, then the current session will wait for
+ 'gc buffer busy release' event. In this case session is waiting for another remote session (hence another instance)
+ to release the GC lock, so that local instance can acquire buffer.
+
+Reference: orainternals.wordpress.com
