@@ -1,0 +1,10 @@
+--https://www.anbob.com/archives/5153.html
+
+--find the holder
+
+select l.sid, p.program, p.pid, p.spid, s.username, s.terminal, s.module, s.action, s.event, s.wait_time, s.seconds_in_wait, s.state
+from v$lock l, v$session s, v$process p
+where l.sid = s.sid
+and s.paddr = p.addr
+and l.type='CF'
+and l.lmode >= 5;
