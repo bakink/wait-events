@@ -1,0 +1,18 @@
+--https://www.anbob.com/archives/5826.html
+
+Finding Blockers:
+
+You can find current blockers by querying GV$LOCK like this:
+
+SELECT distinct w.HW, w.p2 OBJECT_ID, l.inst_id, l.sid, l.lmode, l.request
+ FROM 
+  ( SELECT p2, p3, 'HW-'||substr(p2raw,-8)||'-'||lpad(p3,8,'0') HW
+      FROM v$session_wait 
+     WHERE event='enq: HW - contention'
+       and state='WAITING'
+  ) W, 
+  gv$lock L
+ WHERE l.type(+)='HW'
+   and l.id1(+)=w.p2
+   and l.id2(+)=w.p3
+ ORDER BY hw, lmode desc, request desc
