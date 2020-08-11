@@ -1,5 +1,7 @@
 
 --http://allappsdba.blogspot.com.tr/2012/04/to-check-library-cache-lock-contention.html
+--http://albertdba.com/?p=1865#more-1865
+
 Note:
 Library Cache contention is a serious issue. In most cases it would be good to analyze what is holding the library cache lock and killing it will resolve the issue. Library cache events can even bring the database to a hang state. It's a good idea to identify and kill appropriately as early as possible. But do not kill any mandatory processes or sessions as it may lead to an outage. Contact Oracle support for critical issues.
 
