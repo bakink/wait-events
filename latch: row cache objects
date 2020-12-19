@@ -1,4 +1,9 @@
 --https://sites.google.com/site/embtdbo/wait-event-documentation/oracle-library-cache#TOC-latch:-row-cache-objects
+--https://www.linkedin.com/pulse/wait-event-latch-row-cache-objects-hj-konstantin-krotov/
+--http://www.anbob.com/archives/1860.html
+--http://www.anbob.com/archives/3233.html
+
+
 select
        ash.session_id sid,
        ash.blocking_session bsid,
