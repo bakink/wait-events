@@ -1,0 +1,343 @@
+--https://www.anbob.com/archives/6190.html
+
+Troubleshooting Performance event ‘control file sequential read’
+2021/03/02ORACLE , ORACLE [C] series , system related32 viewsno comments
+Some time ago, I sorted out a wait about the control file " Troubleshooting performance event'enq: CF – contention' ", here is another event about the control file (there is no waiting here), this event is just a notification event, and db file Sequential read is similar to the database I/O operation, but the wait class is not USER I/O, but SYSTEM I/O. The control file sequential read accounted for the AWR top 1 event during the problem period.
+
+Commonly found in:
+
+making a backup of the controlfiles – rman in process
+sharing information (between instances) from the controlfile – RAC system
+reading other blocks from the controlfiles
+reading the header block
+High DML periods
+poor disk performance
+Too many control files
+frequent COMMIT
+Because the SCN of the last transaction is recorded in the control file, frequent updates are required in the OLTP type database, but usually small i/o, but generally rarely appear in the top event, in this case (oracle 19c RAC) below The AWR saw that the problem time period control file sequential read occupies about 90% of the DB TIME, which is abnormal.
+
+
+Note: The problem of control file sequential read is more prominent. I waited for 308K sec DB TIME within an hour, and the single wait reached 36.67 ms. It was a bit slow. But both db file sequential read and direct path read were less than 5ms, and log file parallel write was also 5ms about. Sometimes the log file switch (archiving needed) associated with the control file wait is also affected by the control file sequential read. Of course, I/O Wait avg is sometimes too rough to locate the problem, and it is necessary to continue to analyze the event distribution through the Wait Event Histogram in AWR.
+
+
+
+IOSTAT BY FILETYE SUMMARY It can be seen that the control file read is about 130GB and the control file write 45M within 1 hour , which means that the control file read is very large.
+
+analysis of idea:
+
+1. Check the size of the control file
+
+ select v.*, round(block_size*file_size_blks/1024/1024, 2) MB from v$controlfile v;
+ select v.*, round(record_size*records_total/1024/1024, 2) MB from v$controlfile_record_section v order by MB desc;
+ select * from v$parameter where name = 'control_file_record_keep_time';
+The check result of dozens of MB is acceptable. In some cases, because the keep time is 1 year, the contolfile file is hundreds of MB. You can query the occupied items from v$controlfile_record_section.
+2. Compare control file iostat with normal time point
+
+Comparing the control file related evvent waits and IOStat by Filetype summary from the abnormal time point and the normal time point AWR, it is found that there are more than 8 million waits per hour in normal time, but the avg time of the AWR control file is usually read at 300 us , so when the problem is judged The I/O is slower than usual.
+
+3. Analyze I/O performance
+
+Call the OSW or nmon of the problem time period to check the iostat information, whether the storage disk has io performance problems, and also pay attention to the cpu resources, because when the cpu is exhausted, it will also affect the I/O response time. Are there multiple control files on the same disk? Is there a hot block?
+
+SELECT event, wait_time, p1, p2, p3 
+FROM gv$session_wait WHERE event LIKE '%control%';
+
+SELECT event,p1, p2,sql_id,count(*) 
+FROM gv$active_session_history WHERE event LIKE '%control%'
+ group by event,p1,p2,sql_id;
+
+In the query result, the CPU is idle and some disk busy is high.
+
+
+It can be seen that the control file sequential read is mainly concentrated in 39-42# block. 1# is the file header.
+
+4. Find the corresponding session, SQL, and analyze the execution plan
+
+Analyze event corresponding session information and related SQL from AWR/ASH rpt or ASH raw data. Is there any change in the execution plan or poor performance?
+
+From the results of step 3 above, you can also find top SQL. The main SQL check is to monitor the usage rate of the table space, and the session information is the frequency of the Prometheus monitoring tool . SQL does have a poor execution plan, and it uses hint binding. After collecting system statistics and removing the SQL hint, the test efficiency is better. Of course, optimizing this SQL is not within the scope of this article. The wrong way of join leads to higher control file sequential read.
+
+From the ASH raw data, we can also locate the SQL_PLAN_LINE_ID line number of the event wait execution plan and the corresponding object is x$kccfn. (fixed full scan), which is to monitor the temp file using $TEMP_SPACE_HEADER.
+
+Control file physical read
+The beginning of kcc in X$ comes from the control file. The record of the control file is usually read every time a physical read is performed, and no cache is used. Let's do a test.
+
+select * from v$fixed_view_definition where lower(view_definition) like '%x$kcc%'; 
+
+Such as v$tablespace, v$dbfile, v$tempfile, v$datafile, gv$archive, as in this case is a commonly used SQL for querying table space usage,
+Query dba_data_file and DBA_TEMP_FILES, $TEMP_SPACE_HEADER, etc.
+Dependency relationship dba_data_files based on v$dbfile based on gv$dbfile based on x$kccfn For more information, please refer to " ASM Metadata and Internals"
+
+Open 10046 event at session level, query x$KCCFN 2 or more times to view control file read block.
+select * from x$kccfn;
+
+$cat /..._ora_1841.trc|grep "control file sequential read"
+WAIT #140285876517504: nam='control file sequential read' ela= 14 file#=0 block#=1 blocks=1 obj#=-1 tim=67389713130731  
+WAIT #140285876517504: nam='control file sequential read' ela= 4 file#=0 block#=15 blocks=1 obj#=-1 tim=67389713130755
+WAIT #140285876517504: nam='control file sequential read' ela= 4 file#=0 block#=17 blocks=1 obj#=-1 tim=67389713130769
+WAIT #140285876517504: nam='control file sequential read' ela= 5 file#=0 block#=90 blocks=1 obj#=-1 tim=67389713130785
+WAIT #140285876517504: nam='control file sequential read' ela= 5 file#=0 block#=92 blocks=1 obj#=-1 tim=67389713131972
+
+WAIT #140285876517504: nam='control file sequential read' ela= 12 file#=0 block#=1 blocks=1 obj#=-1 tim=67389714364091
+WAIT #140285876517504: nam='control file sequential read' ela= 6 file#=0 block#=15 blocks=1 obj#=-1 tim=67389714364128
+WAIT #140285876517504: nam='control file sequential read' ela= 5 file#=0 block#=17 blocks=1 obj#=-1 tim=67389714364152
+WAIT #140285876517504: nam='control file sequential read' ela= 7 file#=0 block#=90 blocks=1 obj#=-1 tim=67389714364177
+WAIT #140285876517504: nam='control file sequential read' ela= 7 file#=0 block#=92 blocks=1 obj#=-1 tim=67389714365201
+TIP: It is
+found that every control file read is the same physical read, the same file and block number. Of course, the controlfile file number is always 0 different from the datafile, but the block number can also be seen. If you compare the session stat, you can also find that the session-level physical read total IO requests has increased, but the physical reads will not increase.
+
+ASM Fine Grained Striping
+ASM provides two types of upper striping. One is Coarse with a granularity of 1AU. It can also be considered as no striping. One AU is used up and the next AU is used. The other is Fine Grained in order to distribute file distribution and reduce IO latency. , You can specify several AUs as strips, and the size of a single IO is controlled by two parameters. The default is IO size of 128k. For example, 1MB AU SIZE, the stripe width is 2, the size is 128k, and the usage distribution is as shown in the figure below.
+
+SQL> @p stripe
+NAME VALUE
+---------------------------------------- ----------------------------------------
+_asm_stripewidth 2
+_asm_stripesize 131072
+
+
+Find DISK according to the contro file block.
+For example, let’s not talk about SQL efficiency issues in this case. Obviously, I/O slows down and the wait for control file sequential read is more significant. The 40# adjacent block has been located above. Let’s find out where the control file 40# block is. Disk, and then view the performance of the disk. The library uses ASM storage, and the controlfile uses fine-grained striping by default in ASM (online redo also uses fine-grained at 10g, and only control file at 11g), which makes confirmation relatively troublesome.
+
+  1* select * from v$controlfile
+
+STATUS  NAME                                               IS_ BLOCK_SIZE FILE_SIZE_BLKS     CON_ID
+------- -------------------------------------------------- --- ---------- -------------- ----------
+        +DATADG/ANBOB/CONTROLFILE/current.678.995708357  NO       16384           3372          0
+        +DATADG/ANBOB/CONTROLFILE/current.677.995708357  NO       16384           3372          0
+        +DATADG/ANBOB/CONTROLFILE/current.676.995708357  NO       16384           3372          0
+OR
+SQL> show parameter control
+
+PARAMETER_NAME                       TYPE        VALUE
+------------------------------------ ----------- ----------------------------------------------------------------------------------------------------
+_sql_plan_directive_mgmt_control     integer     0
+control_file_record_keep_time        integer     31
+control_files                        string      +DATADG/ANBOB/CONTROLFILE/current.678.995708357, +DATADG/ANBOB/CONTROLFILE/current.677.995708357
+                                                 , +DATADG/ANBOB/CONTROLFILE/current.676.995708357
+control_management_pack_access       string      DIAGNOSTIC+TUNING
+
+SQL> select GROUP_NUMBER,FILE_NUMBER,BLOCK_SIZE,BLOCKS,BYTES,TYPE,REDUNDANCY,STRIPED from v$asm_file where type='CONTROLFILE';
+
+GROUP_NUMBER FILE_NUMBER BLOCK_SIZE     BLOCKS      BYTES TYPE                 REDUND STRIPE
+------------ ----------- ---------- ---------- ---------- -------------------- ------ ------
+           2         676      16384       3373   55263232 CONTROLFILE          UNPROT FINE
+           2         677      16384       3373   55263232 CONTROLFILE          UNPROT FINE
+           2         678      16384       3373   55263232 CONTROLFILE          UNPROT FINE
+
+Or use
+SQL> select * from v$asm_alias where file_number in(select  FILE_NUMBER  from v$asm_file where type='CONTROLFILE');
+
+NAME                              GROUP_NUMBER FILE_NUMBER FILE_INCARNATION ALIAS_INDEX ALIAS_INCARNATION PARENT_INDEX REFERENCE_INDEX A S     CON_ID
+--------------------------------- ------------ ----------- ---------------- ----------- ----------------- ------------ --------------- - - ----------
+Current.676.995708357                        2         676        995708357         164                 5     33554591        50331647 N Y          0
+Current.677.995708357                        2         677        995708357         163                 5     33554591        50331647 N Y          0
+Current.678.995708357                        2         678        995708357         162                 5     33554591        50331647 N Y          0
+
+- Query ASM DG
+SQL> select * from v$asm_diskgroup;
+
+GROUP_NUMBER NAME       SECTOR_SIZE LOGICAL_SECTOR_SIZE BLOCK_SIZE ALLOCATION_UNIT_SIZE STATE       TYPE     TOTAL_MB    FREE_MB
+------------ ---------- ----------- ------------------- ---------- -------------------- ----------- ------ ---------- ----------
+           1 ARCHDG             512                 512       4096              4194304 CONNECTED   EXTERN    2097152    2078468
+           2 DATADG             512                 512       4096              4194304 CONNECTED   EXTERN   50331648    4105196
+           3 MGMT               512                 512       4096              4194304 MOUNTED     EXTERN     102400      62044
+           4 OCRDG              512                 512       4096              4194304 MOUNTED     NORMAL      10240       9348
+Let's take file 676 as an example
+-the file directory corresponding to ASM FILE
+
+  1* select group_number,disk_number,path from v$asm_disk where group_number=2 and disk_number=0
+
+GROUP_NUMBER DISK_NUMBER PATH
+------------ ----------- ------------------------------
+           2 0 / dev / asm-disk1
+
+# find file directory second au 
+grid@anbob:~$kfed read /dev/asm-disk1|egrep 'f1b1|au'
+kfdhdb.ausize:                  4194304 ; 0x0bc: 0x00400000
+kfdhdb.f1b1locn:                     10 ; 0x0d4: 0x0000000a
+kfdhdb.f1b1fcn.base:                  0 ; 0x100: 0x00000000
+kfdhdb.f1b1fcn.wrap:                  0 ; 0x104: 0x00000000
+
+# find disk directory 
+grid@anbob:~$kfed read /dev/asm-disk1 aun=10 aus=4194304 blkn=1|grep au|grep -v 4294967295
+kfffde [0] .xptr.au: 10; 0x4a0: 0x0000000a
+kfffde [1] .xptr.au: 121954; 0x4a8: 0x0001dc62
+grid@anbob:~$kfed read /dev/asm-disk1 aun=10 aus=4194304 blkn=1|grep disk|grep -v 65535
+kfffde[0].xptr.disk:                  0 ; 0x4a4: 0x0000
+kfffde[1].xptr.disk:                 21 ; 0x4ac: 0x0015
+The file directory metadate location has disk 0 au 10, disk 21 au 121954, because AU SIZE 4MB, metadata block size 4096, ASM will assign a unique number to each file directory for management convenience, and it will be in the first file directory A 4k block is allocated to it in the AU to store the AU allocated by it. So an AU SIZE can record 4M/4K =1024 file directories, our 676# file is in the first AU, which is disk0 au10.
+
+— Find the AU distribution of 676# FILE from the file directory
+
+grid@anbob:~$kfed read /dev/asm-disk1 aun=10 aus=4194304 blkn=676|grep disk|grep -v ffff
+kfffde[0].xptr.disk:                  6 ; 0x4a4: 0x0006
+kfffde[1].xptr.disk:                 43 ; 0x4ac: 0x002b
+kfffde[2].xptr.disk:                 26 ; 0x4b4: 0x001a
+kfffde[3].xptr.disk:                 15 ; 0x4bc: 0x000f
+kfffde[4].xptr.disk:                  3 ; 0x4c4: 0x0003
+kfffde[5].xptr.disk:                 10 ; 0x4cc: 0x000a
+kfffde[6].xptr.disk:                 20 ; 0x4d4: 0x0014
+kfffde[7].xptr.disk:                 41 ; 0x4dc: 0x0029
+kfffde[8].xptr.disk:                 28 ; 0x4e4: 0x001c
+kfffde[9].xptr.disk:                  2 ; 0x4ec: 0x0002
+kfffde[10].xptr.disk:                40 ; 0x4f4: 0x0028
+kfffde[11].xptr.disk:                47 ; 0x4fc: 0x002f
+kfffde[12].xptr.disk:                42 ; 0x504: 0x002a
+kfffde[13].xptr.disk:                17 ; 0x50c: 0x0011
+kfffde[14].xptr.disk:                27 ; 0x514: 0x001b
+kfffde[15].xptr.disk:                18 ; 0x51c: 0x0012
+grid@anbob:~$kfed read /dev/asm-disk1 aun=10 aus=4194304 blkn=676|grep au|grep -v ffff
+kfffde [0] .xptr.au: 3; 0x4a0: 0x00000003
+kfffde [1] .xptr.au: 3; 0x4a8: 0x00000003
+kfffde [2] .xptr.au: 2; 0x4b0: 0x00000002
+kfffde [3] .xptr.au: 8; 0x4b8: 0x00000008
+kfffde [4] .xptr.au: 2; 0x4c0: 0x00000002
+kfffde [5] .xptr.au: 10; 0x4c8: 0x0000000a
+kfffde [6] .xptr.au: 3; 0x4d0: 0x00000003
+kfffde [7] .xptr.au: 3; 0x4d8: 0x00000003
+kfffde [8] .xptr.au: 213918; 0x4e0: 0x0003439e
+kfffde [9] .xptr.au: 213929; 0x4e8: 0x000343a9
+kfffde [10] .xptr.au: 213922; 0x4f0: 0x000343a2
+kfffde [11] .xptr.au: 213927; 0x4f8: 0x000343a7
+kfffde [12] .xptr.au: 213922; 0x500: 0x000343a2
+kfffde [13] .xptr.au: 213923; 0x508: 0x000343a3
+kfffde [14] .xptr.au: 213928; 0x510: 0x000343a8
+kfffde [15] .xptr.au: 213921; 0x518: 0x000343a1
+
+SQL> @p stripe
+
+NAME                                     VALUE
+---------------------------------------- ----------------------------------------
+_asm_stripewidth                         8
+_asm_stripesize                          131072
+
+You can see that 676# file has 16 AUs allocated, and the current fine-grained width is 8, which happens to be 2 groups of AUs.
+
+— Verify whether the content of an AU is the content of the control file
+
+SQL> select group_number,disk_number,path from v$asm_disk where disk_number=6;
+
+GROUP_NUMBER DISK_NUMBER PATH
+------------ ----------- ------------------------------
+           2 6 / dev / asm-disk15
+		   
+# dd if=/dev/asm-disk15 bs=4194304 skip=3 count=1|strings|more
+
+...
++ DATADG / ANBOB / DATAFILE / netm_dat.458.995715183
++ DATADG / ANBOB / DATAFILE / netm_dat.459.995715187
++DATADG/ANBOB/DATAFILE/rpt_bill.460.995715311
++ DATADG / ANBOB / DATAFILE / netm_dat.461.995715315
++ DATADG / ANBOB / DATAFILE / netm_dat.462.995715315
++DATADG/ANBOB/DATAFILE/rpt_bill.463.995715317
++ DATADG / ANBOB / DATAFILE / netm_dat.464.995715441
++ DATADG / ANBOB / DATAFILE / netm_dat.465.995715441
++DATADG/ANBOB/DATAFILE/rpt_bill.466.995715441
++ DATADG / ANBOB / DATAFILE / netm_dat.467.995715441
++ DATADG / ANBOB / DATAFILE / netm_dat.468.995715567
++DATADG/ANBOB/DATAFILE/rpt_bill.469.995715567
++ DATADG / ANBOB / DATAFILE / netm_dat.470.995715567
+— It is easier to query in the ASM instance.
+If the ASM instance is available, you can directly query x$kffxp (ASM File eXtent Pointer)
+
+col path for a30
+col failgroup for a15
+select a.file_number file#,a.name,x.xnum_kffxp extent#,a.group_number group#,d.disk_number disk#,
+au_kffxp au#, dg.allocation_unit_size au_size,
+decode(x.lxn_kffxp,0,'PRIMARY',1,'MIRROR') TYPE, d.failgroup,d.path
+from v$asm_alias a,x$kffxp x, v$asm_disk d, v$asm_diskgroup dg
+where x.group_kffxp=a.group_number
+and x.group_kffxp=dg.group_number
+and x.group_kffxp=d.group_number
+and x.disk_kffxp=d.disk_number
+and x.number_kffxp=a.file_number
+and lower(a.name)=lower('Current.676.995708357')
+order by x.xnum_kffxp;
+																	  
+     FILE# NAME                             EXTENT#     GROUP#      DISK#        AU#    AU_SIZE TYPE    FAILGROUP       PATH                      
+---------- ---------------------------------------- ---------- ---------- ---------- ---------- ------- --------------- ---------------------------------
+       676 Current.676.995708357                  0          2          6          3    4194304 PRIMARY DATADG_0006     /dev/asm-disk15           
+       676 Current.676.995708357                  1          2         43          3    4194304 PRIMARY DATADG_0043     /dev/asm-disk5            
+       676 Current.676.995708357                  2          2         26          2    4194304 PRIMARY DATADG_0026     /dev/asm-disk33           
+       676 Current.676.995708357                  3          2         15          8    4194304 PRIMARY DATADG_0015     /dev/asm-disk23           
+       676 Current.676.995708357                  4          2          3          2    4194304 PRIMARY DATADG_0003     /dev/asm-disk12           
+       676 Current.676.995708357                  5          2         10         10    4194304 PRIMARY DATADG_0010     /dev/asm-disk19           
+       676 Current.676.995708357                  6          2         20          3    4194304 PRIMARY DATADG_0020     /dev/asm-disk28           
+       676 Current.676.995708357                  7          2         41          3    4194304 PRIMARY DATADG_0041     /dev/asm-disk47           
+       676 Current.676.995708357                  8          2         28     213918    4194304 PRIMARY DATADG_0028     /dev/asm-disk35           
+       676 Current.676.995708357                  9          2          2     213929    4194304 PRIMARY DATADG_0002     /dev/asm-disk11           
+       676 Current.676.995708357                 10          2         40     213922    4194304 PRIMARY DATADG_0040     /dev/asm-disk46           
+       676 Current.676.995708357                 11          2         47     213927    4194304 PRIMARY DATADG_0047     /dev/asm-disk9            
+       676 Current.676.995708357                 12          2         42     213922    4194304 PRIMARY DATADG_0042     /dev/asm-disk48           
+       676 Current.676.995708357                 13          2         17     213923    4194304 PRIMARY DATADG_0017     /dev/asm-disk25           
+       676 Current.676.995708357                 14          2         27     213928    4194304 PRIMARY DATADG_0027     /dev/asm-disk34           
+       676 Current.676.995708357                 15          2         18     213921    4194304 PRIMARY DATADG_0018     /dev/asm-disk26           
+
+16 rows selected.
+
+ASMCMD>  mapextent '+DATADG/ANBOB/CONTROLFILE/current.676.995708357' 0
+Disk_Num         AU      Extent_Size
+6                3               1
+ASMCMD>  mapextent '+DATADG/ANBOB/CONTROLFILE/current.676.995708357' 1
+Disk_Num         AU      Extent_Size
+43               3               1
+
+ASMCMD> mapau 2 43 3
+File_Num         Extent          Extent_Set
+676              1               1
+ASMCMD>        
+— Calculate which AU of control file 676 block 40# is on
+
+(block#) 40 * (confile file block size) 16k/ (_asm_stripewidth) 128k=5. On the 5th AU of the first band, the first 128k.
+
+AT	AT ext0	AU ext1	AU ext2	AU ext3	AT ext4	AT ext5	AT ext6	AT ext7
+DISK.AU	6.3	43.3	26.2	15.8	3.2	10.1	20.3	41.3
+strips size	128k	128k	128k	128k	128k	128k	128k	128k
+ctl block#	0-7	8-15	14-23	24-31	32-40			
+If it is verified that we confirm that this position is indeed the value we calculated? dump block
+
+SQL> select group_number,disk_number,path from v$asm_disk where disk_number=6 and group_number=2;
+
+GROUP_NUMBER DISK_NUMBER PATH
+------------ ----------- ------------------------------
+           2 6 / dev / asm-disk15
+
+grid@anbob:~$dd if=/dev/asm-disk15  bs=4194304 skip=3 count=1  |dd bs=128k count=1 |dd bs=16384 count=1 |hexdump -C
+00000000  00 c2 00 00 00 00 c0 ff  00 00 00 00 00 00 00 00  |................|
+00000010 ea 76 00 00 00 40 00 00 2c 0d 00 00 7d 7c 7b 7a | .v ... @ ..., ...} | {z |
+00000020  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+*
+
+grid@anbob:~$dd if=/dev/asm-disk15  bs=4194304 skip=3 count=1  |dd bs=128k count=1 |dd bs=16384 count=1 skip=7|hexdump -C
+00000000  15 c2 00 00 07 00 00 00  00 00 00 00 00 00 01 04  |................|
+00000010  ed 2c 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |.,..............|
+00000020  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+*
+
+SQL>  select group_number,disk_number,path from v$asm_disk where disk_number=3 and group_number=2;
+
+GROUP_NUMBER DISK_NUMBER PATH
+------------ ----------- ------------------------------
+           2 3 / dev / asm-disk12
+
+grid@anbob:~$dd if=/dev/asm-disk12  bs=4194304 skip=2 count=1  |dd bs=128k count=1 |dd bs=16384 count=1 |hexdump -C
+00000000  15 c2 00 00 20 00 00 00  00 00 00 00 00 00 01 04  |.... ...........|
+00000010 ca 2c 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 |., .............. |
+
+
+grid@anbob:~$dd if=/dev/asm-disk12  bs=4194304 skip=2 count=1  |dd bs=128k count=1 |dd bs=16384 count=1 skip=7|hexdump -C
+00000000  15 c2 00 00 27 00 00 00  9d 47 d8 3c ff ff 01 04  |....'....G.<....|
+00000010  c1 e1 00 00 00 00 40 2b  04 f1 2a 00 00 00 00 00  |......@+..*.....|
+00000020  0b 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+00000030  00 00 41 00 00 00 00 00  40 00 00 00 00 00 00 00  |..A.....@.......|
+
+TIP:
+The 4-7 bytes of block are rdba, and the block number is just 40#(0x27) block, because it starts from 0. This also confirms the physical disk and the specific location.
+
+View DISK performance
+Then you can find the mapped disk device according to ASM DISK. Use iostat to view IO performance
+
+
+
+It is found that the disk corresponding to the control file 40 block read/s 214 w/s 16 should have reached the maximum iops of a single disk at the time, avgqu-size and awwait, %util have higher values, confirm that the disk has a higher bottleneck, It is necessary to check the queue and try, there is a higher hot disk. This problem is recorded here first.
